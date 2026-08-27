@@ -205,6 +205,12 @@ test/
   helpers/          # Mock forge, mock tracker, fake bd
 ```
 
+## Artificial Intelligence Contribution Disclosure
+
+This project was developed with the assistance of AI models for code generation, review, and documentation. All code has been reviewed and validated by human developers.
+
+Patches written with the help of LLMs contain a disclaimer in the body of the commits.
+
 ## License
 
 See [LICENSE](LICENSE).
