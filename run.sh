@@ -1,5 +1,5 @@
 #!/bin/sh
-# ai-orchestrator launcher
+# Synapse launcher
 # Loads secrets from .env (gitignored), then starts the orchestrator.
 
 set -a

@@ -184,7 +184,7 @@ async function addAgent(existing: AgentConfig[]): Promise<AgentConfig[]> {
 }
 
 export async function runSetup(configPath: string = "config.yaml"): Promise<OrchestratorConfig> {
-	console.log("=== ai-orchestrator setup ===\n");
+	console.log("=== Synapse setup ===\n");
 
 	// Load existing config if present
 	let config: Record<string, unknown> = {};

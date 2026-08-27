@@ -42,7 +42,7 @@ describe("Viewer server", () => {
 		const res = await fetch(`http://localhost:${port}/`);
 		expect(res.status).toBe(200);
 		const text = await res.text();
-		expect(text).toContain("ai-orchestrator");
+		expect(text).toContain("Synapse Brain");
 		expect(text).toContain("tailwindcss");
 	});
 

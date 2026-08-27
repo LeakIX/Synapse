@@ -1,4 +1,4 @@
-# ai-orchestrator configuration
+# Synapse configuration
 #
 # All ${VAR} references are expanded from environment variables.
 # Use ${VAR:-default} for optional values with defaults.
