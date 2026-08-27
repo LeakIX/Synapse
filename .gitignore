@@ -1,0 +1,9 @@
+node_modules/
+queue/pending/*
+queue/active/*
+queue/done/*
+queue/archive/*
+queue/failed/*
+!queue/**/.gitkeep
+config.yaml
+*.log

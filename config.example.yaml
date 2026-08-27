@@ -1,0 +1,47 @@
+# ai-orchestrator configuration
+#
+# All ${VAR} references are expanded from environment variables.
+# Use ${VAR:-default} for optional values with defaults.
+
+forge:
+  type: gitea # or: github
+  url: gitea.com
+  token: ${GITEA_TOKEN}
+  owner: foo
+  repo: bar
+
+ci:
+  type: drone # or: woodpecker, github-actions
+  url: https://ci.com
+  token: ${CI_TOKEN}
+
+beads:
+  dir: /path/to/project
+  binary: bd
+
+queue:
+  type: file
+  dir: ./queue
+
+agents:
+  - name: code-agent
+    emoji: "🔧"
+    capabilities:
+      - code
+      - refactoring
+  - name: test-agent
+    emoji: "🧪"
+    capabilities:
+      - testing
+      - review
+
+webhook:
+  port: 8080
+  secret: ${WEBHOOK_SECRET:-}
+
+parser:
+  type: mention
+
+log:
+  level: info # debug, info, warn, error
+  format: text # text, json
