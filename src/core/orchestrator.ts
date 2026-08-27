@@ -1,5 +1,5 @@
 import type { Event } from "../core/event.ts";
-import type { IssueTracker } from "../issues/types.ts";
+import type { IssueTracker, IssueStatus, IssueType } from "../issues/types.ts";
 import type { QueueTask, TaskQueue } from "../queue/types.ts";
 import type { ForgeClient } from "../forge/types.ts";
 import type { EventParser, ParsedInstruction } from "../parser/types.ts";
@@ -137,7 +137,7 @@ export class Orchestrator {
 			`[${inst.agentName}] ${inst.instruction.slice(0, 80)}`,
 			{
 				description: inst.instruction,
-				type: "task",
+				type: "task" satisfies IssueType,
 				labels: [agent.name, `urgency-${inst.urgency}`],
 			},
 		);
@@ -179,7 +179,7 @@ export class Orchestrator {
 					followUpAfter: inst.followUpAfter,
 				});
 				await this.#tracker.update(issue.id, {
-					status: "blocked",
+					status: "blocked" satisfies IssueStatus,
 				});
 				return { ...task, claimedAt: undefined };
 			}
@@ -248,7 +248,7 @@ export class Orchestrator {
 
 		try {
 			await this.#tracker.update(task.issueId, {
-				status: "blocked",
+				status: "blocked" satisfies IssueStatus,
 			});
 		} catch (err) {
 			this.#logger.error("failed to update issue", {

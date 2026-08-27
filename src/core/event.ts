@@ -1,4 +1,5 @@
 import type { Issue } from "../issues/types.ts";
+import type { CiStatus } from "../ci/types.ts";
 
 /** Kind of event, determines the payload shape. */
 export type EventKind =
@@ -46,7 +47,7 @@ export interface IssuePayload {
 	title: string;
 	author: string;
 	/** What happened to the issue. */
-	action: "opened" | "closed" | "reopened" | "labelled";
+	action: IssueAction;
 	url: string;
 }
 
@@ -58,7 +59,7 @@ export interface PrPayload {
 	title: string;
 	author: string;
 	/** What happened to the PR. */
-	action: "opened" | "closed" | "merged" | "labelled";
+	action: PrAction;
 	url: string;
 }
 
@@ -67,7 +68,7 @@ export interface BeadsChangePayload {
 	/** The beads issue ID that changed. */
 	issueId: string;
 	/** What kind of change. */
-	change: "created" | "updated" | "closed" | "dep_added" | "dep_removed";
+	change: BeadsChange;
 	/** The issue after the change, if available. */
 	issue?: Issue;
 }
@@ -76,7 +77,7 @@ export interface BeadsChangePayload {
 export interface CiStatusPayload {
 	/** The PR number this status applies to. */
 	prNumber: number;
-	status: "pending" | "passing" | "failing";
+	status: CiStatus;
 	/** URL to the CI build. */
 	url: string;
 }
@@ -90,3 +91,18 @@ export type EventPayload =
 	| CiStatusPayload;
 
 export type { Issue } from "../issues/types.ts";
+export type { CiStatus } from "../ci/types.ts";
+
+/** What happened to an issue in a forge event. */
+export type IssueAction = "opened" | "closed" | "reopened" | "labelled";
+
+/** What happened to a PR in a forge event. */
+export type PrAction = "opened" | "closed" | "merged" | "labelled";
+
+/** What kind of change was detected in the beads database. */
+export type BeadsChange =
+	| "created"
+	| "updated"
+	| "closed"
+	| "dep_added"
+	| "dep_removed";

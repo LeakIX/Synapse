@@ -1,4 +1,4 @@
-import type { Logger, LogLevel } from "./types.ts";
+import type { Logger, LogLevel, LogFormat } from "./types.ts";
 
 const LEVEL_ORDER: Record<LogLevel, number> = {
 	debug: 0,
@@ -13,9 +13,9 @@ const LEVEL_ORDER: Record<LogLevel, number> = {
  */
 export class StdoutLogger implements Logger {
 	#level: LogLevel;
-	#format: "text" | "json";
+	#format: LogFormat;
 
-	constructor(level: LogLevel = "info", format: "text" | "json" = "text") {
+	constructor(level: LogLevel = "info", format: LogFormat = "text") {
 		this.#level = level;
 		this.#format = format;
 	}

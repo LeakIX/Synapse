@@ -12,7 +12,7 @@ import { ForgeWebhookSource } from "./events/forge-webhook.ts";
 import { BeadsWatchSource } from "./events/beads-watch.ts";
 import { Orchestrator } from "./core/orchestrator.ts";
 import { CiGate } from "./core/ci-gate.ts";
-import type { OrchestratorConfig } from "./config/types.ts";
+import type { OrchestratorConfig, CiType } from "./config/types.ts";
 import type { CiClient } from "./ci/types.ts";
 import type { IssueTracker } from "./issues/types.ts";
 import type { TaskQueue } from "./queue/types.ts";
@@ -93,10 +93,8 @@ export function createOrchestrator(
 	return { orchestrator, sources, logger };
 }
 
-function createCiClient(
-	c: OrchestratorConfig["cis"][0],
-): CiClient {
-	switch (c.type) {
+function createCiClient(c: OrchestratorConfig["cis"][0]): CiClient {
+	switch (c.type satisfies CiType) {
 		case "drone":
 			return new DroneClient(c);
 		case "woodpecker":

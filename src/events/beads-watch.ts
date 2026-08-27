@@ -1,10 +1,14 @@
 import { watch } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import type { Event, BeadsChangePayload } from "../core/event.ts";
+import type {
+	Event,
+	BeadsChangePayload,
+	BeadsChange,
+} from "../core/event.ts";
 import type { EventSource } from "../events/types.ts";
 import type { BeadsConfig } from "../config/types.ts";
-import type { Issue } from "../issues/types.ts";
+import type { IssueStatus, IssueType } from "../issues/types.ts";
 
 /**
  * EventSource that watches the beads database for changes.
@@ -66,15 +70,10 @@ export class BeadsWatchSource implements EventSource {
 
 				const prevStatus = this.#lastState.get(id);
 				if (prevStatus === undefined) {
-					// New issue
-					onEvent(this.#makeEvent("created", raw));
+					onEvent(this.#makeEvent("created" satisfies BeadsChange, raw));
 				} else if (prevStatus !== status) {
-					const change =
-						status === "closed"
-							? "closed"
-							: status === "in_progress"
-								? "updated"
-								: "updated";
+					const change: BeadsChange =
+						status === "closed" ? "closed" : "updated";
 					onEvent(this.#makeEvent(change, raw));
 				}
 			}
@@ -102,7 +101,7 @@ export class BeadsWatchSource implements EventSource {
 	}
 
 	#makeEvent(
-		change: BeadsChangePayload["change"],
+		change: BeadsChange,
 		raw: Record<string, unknown>,
 	): Event {
 		return {
@@ -116,9 +115,9 @@ export class BeadsWatchSource implements EventSource {
 					id: String(raw.id ?? ""),
 					title: String(raw.title ?? ""),
 					description: String(raw.description ?? ""),
-					status: raw.status as Issue["status"] ?? "open",
+					status: (raw.status as IssueStatus) ?? "open",
 					priority: Number(raw.priority ?? 2),
-					type: (raw.type as Issue["type"]) ?? "task",
+					type: (raw.type as IssueType) ?? "task",
 					labels: (raw.labels as string[]) ?? [],
 					createdAt: String(raw.created_at ?? ""),
 					updatedAt: String(raw.updated_at ?? ""),

@@ -1,9 +1,24 @@
+import type { GiteaApiVersion } from "../forge/gitea.ts";
+import type { LogLevel, LogFormat } from "../log/types.ts";
+
+/** Which forge implementation to use. */
+export type ForgeType = "gitea" | "github";
+
+/** Which CI implementation to use. */
+export type CiType = "drone" | "woodpecker" | "github-actions";
+
+/** Which parser implementation to use. */
+export type ParserType = "mention";
+
+/** Which queue backend implementation to use. */
+export type QueueType = "file";
+
 /** Forge (code hosting) configuration. */
 export interface ForgeConfig {
 	/** Unique name for this forge, used to route events. */
 	name: string;
 	/** Which forge implementation to use. */
-	type: "gitea" | "github";
+	type: ForgeType;
 	/** Base URL of the forge instance. */
 	url: string;
 	/** API token, after env expansion. */
@@ -13,7 +28,7 @@ export interface ForgeConfig {
 	/** Repository name. */
 	repo: string;
 	/** Gitea API version (v1 or v2). Only used when type is "gitea". */
-	apiVersion?: "v1" | "v2";
+	apiVersion?: GiteaApiVersion;
 }
 
 /** Continuous integration system configuration. */
@@ -21,7 +36,7 @@ export interface CiConfig {
 	/** Unique name for this CI system. */
 	name: string;
 	/** Which CI implementation to use. */
-	type: "drone" | "woodpecker" | "github-actions";
+	type: CiType;
 	/** Base URL of the CI instance. */
 	url: string;
 	/** API token, after env expansion. */
@@ -41,7 +56,7 @@ export interface BeadsConfig {
 /** Task queue configuration. */
 export interface QueueConfig {
 	/** Queue backend implementation. */
-	type: "file";
+	type: QueueType;
 	/** Directory for the file-based queue backend. */
 	dir: string;
 }
@@ -67,15 +82,15 @@ export interface WebhookConfig {
 /** Event parser configuration. */
 export interface ParserConfig {
 	/** Which parser implementation to use. */
-	type: "mention";
+	type: ParserType;
 }
 
 /** Logging configuration. */
 export interface LogConfig {
 	/** Minimum level to emit. */
-	level: "debug" | "info" | "warn" | "error";
+	level: LogLevel;
 	/** Output format. */
-	format: "text" | "json";
+	format: LogFormat;
 }
 
 /** Top-level orchestrator configuration. */

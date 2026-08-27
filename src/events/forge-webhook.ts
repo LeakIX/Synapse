@@ -4,6 +4,8 @@ import type {
 	CommentPayload,
 	IssuePayload,
 	PrPayload,
+	IssueAction,
+	PrAction,
 } from "../core/event.ts";
 import type { EventSource } from "../events/types.ts";
 import type { WebhookConfig, ForgeConfig } from "../config/types.ts";
@@ -125,7 +127,7 @@ export function parseWebhookPayload(
 	// PR events
 	const pr = payload.pull_request as Record<string, unknown> | undefined;
 	if (pr) {
-		const prAction =
+		const prAction: PrAction | null =
 			action === "opened"
 				? "opened"
 				: action === "closed"
@@ -160,7 +162,7 @@ export function parseWebhookPayload(
 	// Issue events
 	const issue = payload.issue as Record<string, unknown> | undefined;
 	if (issue) {
-		const issueAction =
+		const issueAction: IssueAction | null =
 			action === "opened" || action === "created"
 				? "opened"
 				: action === "closed" || action === "reopened"

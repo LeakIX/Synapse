@@ -6,6 +6,9 @@ export type IssueStatus =
 	| "closed"
 	| "deferred";
 
+/** The kind of work an issue represents. */
+export type IssueType = "task" | "epic" | "bug";
+
 /** A tracked issue in the issue tracker. */
 export interface Issue {
 	/** Tracker-specific unique ID (e.g. beads ID like "proj-82c.19"). */
@@ -15,7 +18,7 @@ export interface Issue {
 	status: IssueStatus;
 	/** 0 (critical) through 4 (nice to have). */
 	priority: number;
-	type: "task" | "epic" | "bug";
+	type: IssueType;
 	/** External reference, e.g. "pr:246" or "issue:123". */
 	externalRef?: string;
 	/** Parent issue ID, for hierarchical tracking. */
@@ -30,7 +33,7 @@ export interface Issue {
 /** Options for creating a new issue. All optional except title (separate param). */
 export interface CreateIssueOpts {
 	description?: string;
-	type?: "task" | "epic" | "bug";
+	type?: IssueType;
 	priority?: number;
 	parent?: string;
 	labels?: string[];

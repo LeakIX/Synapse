@@ -1,5 +1,6 @@
 export type { Event } from "../core/event.ts";
 import type { Event } from "../core/event.ts";
+import type { Urgency } from "../queue/types.ts";
 
 /**
  * Abstraction over event parsing (mention detection, LLM extraction, ...).
@@ -20,7 +21,7 @@ export interface ParsedInstruction {
 	/** Natural-language instruction for the agent. */
 	instruction: string;
 	/** "now" = urgent (e.g. "now" keyword present), "queued" = when free. */
-	urgency: "now" | "queued";
+	urgency: Urgency;
 	/** PR/issue number this instruction is a follow-up of, if any. */
 	followUpAfter?: number;
 }

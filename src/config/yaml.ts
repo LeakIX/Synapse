@@ -4,7 +4,13 @@ import type {
 	OrchestratorConfig,
 	ForgeConfig,
 	CiConfig,
+	ForgeType,
+	CiType,
+	ParserType,
+	QueueType,
 } from "./types.ts";
+import type { LogLevel, LogFormat } from "../log/types.ts";
+import type { GiteaApiVersion } from "../forge/gitea.ts";
 import type { ConfigSource } from "./source.ts";
 
 /**
@@ -75,7 +81,7 @@ export function validateConfig(
 			binary: str(beads, "binary", "beads.binary"),
 		},
 		queue: {
-			type: "file",
+			type: "file" satisfies QueueType,
 			dir: str(queue, "dir", "queue.dir"),
 		},
 		agents: (agents as Record<string, unknown>[]).map((a, i) => ({
@@ -88,11 +94,11 @@ export function validateConfig(
 			secret: str(webhook, "secret", "webhook.secret"),
 		},
 		parser: {
-			type: parser.type as "mention",
+			type: parser.type as ParserType,
 		},
 		log: {
-			level: (log.level as "debug" | "info" | "warn" | "error") ?? "info",
-			format: (log.format as "text" | "json") ?? "text",
+			level: (log.level as LogLevel) ?? "info",
+			format: (log.format as LogFormat) ?? "text",
 		},
 	};
 }
@@ -120,12 +126,12 @@ function parseForges(obj: Record<string, unknown>): ForgeConfig[] {
 	}
 	return arr.map((f, i) => ({
 		name: optionalStr(f, "name", `forge-${i + 1}`),
-		type: f.type as "gitea" | "github",
+		type: f.type as ForgeType,
 		url: str(f, "url", `forges[${i}].url`),
 		token: str(f, "token", `forges[${i}].token`),
 		owner: str(f, "owner", `forges[${i}].owner`),
 		repo: str(f, "repo", `forges[${i}].repo`),
-		apiVersion: (f.apiVersion as "v1" | "v2" | undefined) ?? undefined,
+		apiVersion: (f.apiVersion as GiteaApiVersion | undefined) ?? undefined,
 	}));
 }
 
@@ -139,7 +145,7 @@ function parseCis(obj: Record<string, unknown>): CiConfig[] {
 		: [raw as Record<string, unknown>];
 	return arr.map((c, i) => ({
 		name: optionalStr(c, "name", `ci-${i + 1}`),
-		type: c.type as "drone" | "woodpecker" | "github-actions",
+		type: c.type as CiType,
 		url: str(c, "url", `cis[${i}].url`),
 		token: str(c, "token", `cis[${i}].token`),
 		forge: optionalStr(c, "forge", "default"),

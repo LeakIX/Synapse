@@ -10,9 +10,15 @@ export interface ForgeContext {
 	url: string;
 }
 
+/** The outcome of an agent completing a task. */
+export type TaskStatus = "success" | "failure";
+
+/** How urgently a task should be dispatched. */
+export type Urgency = "now" | "queued";
+
 /** The result of an agent completing (or failing) a task. */
 export interface TaskResult {
-	status: "success" | "failure";
+	status: TaskStatus;
 	/** One-line summary of what the agent did or why it failed. */
 	summary: string;
 	/** Optional detailed output (e.g. agent stdout). */
@@ -34,7 +40,7 @@ export interface QueueTask {
 	/** PR/issue number this task is a follow-up of. */
 	followUpAfter?: number;
 	/** "now" = urgent, "queued" = when the agent is free. */
-	urgency: "now" | "queued";
+	urgency: Urgency;
 	/** ISO timestamp of when the task was created. */
 	createdAt: string;
 	/** ISO timestamp of when an agent claimed the task. */

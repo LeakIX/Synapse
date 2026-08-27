@@ -5,7 +5,12 @@ import type {
 	ForgeConfig,
 	CiConfig,
 	AgentConfig,
+	ForgeType,
+	CiType,
+	ParserType,
+	QueueType,
 } from "./config/types.ts";
+import type { LogLevel, LogFormat } from "./log/types.ts";
 
 /**
  * Interactive setup CLI.
@@ -98,7 +103,7 @@ async function addForge(existing: ForgeConfig[]): Promise<ForgeConfig[]> {
 
 	const forge: ForgeConfig = {
 		name,
-		type: type as "gitea" | "github",
+		type: type as ForgeType,
 		url,
 		token,
 		owner,
@@ -149,7 +154,7 @@ async function addCi(
 
 	const ci: CiConfig = {
 		name,
-		type: type as "drone" | "woodpecker" | "github-actions",
+		type: type as CiType,
 		url,
 		token,
 		forge: forgeName,
@@ -204,7 +209,7 @@ export async function runSetup(configPath: string = "config.yaml"): Promise<Orch
 		forges = [
 			{
 				name: (f.name as string) ?? "default",
-				type: (f.type as "gitea" | "github") ?? "gitea",
+				type: (f.type as ForgeType) ?? "gitea",
 				url: f.url as string,
 				token: f.token as string,
 				owner: f.owner as string,
@@ -235,7 +240,7 @@ export async function runSetup(configPath: string = "config.yaml"): Promise<Orch
 		cis = [
 			{
 				name: (c.name as string) ?? "default",
-				type: (c.type as "drone" | "woodpecker" | "github-actions") ?? "drone",
+				type: (c.type as CiType) ?? "drone",
 				url: c.url as string,
 				token: c.token as string,
 				forge: (c.forge as string) ?? (forges[0]?.name ?? "default"),
@@ -328,13 +333,13 @@ export async function runSetup(configPath: string = "config.yaml"): Promise<Orch
 		forges,
 		cis,
 		beads: { dir: beadsDir, binary: beadsBinary },
-		queue: { type: "file", dir: queueDir },
+		queue: { type: "file" satisfies QueueType, dir: queueDir },
 		agents,
 		webhook: { port: webhookPort, secret: webhookSecret },
-		parser: { type: parserType as "mention" },
+		parser: { type: parserType as ParserType },
 		log: {
-			level: logLevel as "debug" | "info" | "warn" | "error",
-			format: logFormat as "text" | "json",
+			level: logLevel as LogLevel,
+			format: logFormat as LogFormat,
 		},
 	};
 

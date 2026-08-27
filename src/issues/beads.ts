@@ -3,6 +3,7 @@ import { promisify } from "node:util";
 import type {
 	Issue,
 	IssueStatus,
+	IssueType,
 	CreateIssueOpts,
 	ListFilter,
 	IssueTracker,
@@ -110,7 +111,7 @@ export class BeadsClient implements IssueTracker {
 			description: String(raw.description ?? ""),
 			status: (raw.status as IssueStatus) ?? "open",
 			priority: Number(raw.priority ?? 2),
-			type: (raw.type as "task" | "epic" | "bug") ?? "task",
+			type: (raw.type as IssueType) ?? "task",
 			externalRef: raw.externalRef as string | undefined,
 			parent: raw.parent as string | undefined,
 			labels: (raw.labels as string[]) ?? [],

@@ -1,6 +1,9 @@
 /** Log severity levels, in increasing order. */
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
+/** Log output format. */
+export type LogFormat = "text" | "json";
+
 /**
  * Abstraction over logging. The orchestrator depends on this interface;
  * concrete implementations (stdout, file, OTLP) are swappable.

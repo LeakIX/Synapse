@@ -6,15 +6,18 @@ import { promisify } from "node:util";
 
 const pExecFile = promisify(execFile);
 
+import type { TaskStatus, Urgency } from "../queue/types.ts";
+import type { IssueStatus, IssueType } from "../issues/types.ts";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 interface BdIssue {
 	id: string;
 	title: string;
 	description: string;
-	status: string;
+	status: IssueStatus;
 	priority: number;
-	issue_type: string;
+	issue_type: IssueType;
 	owner?: string;
 	created_at: string;
 	external_ref?: string;
@@ -32,11 +35,11 @@ interface QueueTaskFile {
 	issueId: string;
 	agent: string;
 	instruction: string;
-	urgency: string;
+	urgency: Urgency;
 	createdAt: string;
 	claimedAt?: string;
 	completedAt?: string;
-	result?: { status: string; summary: string };
+	result?: { status: TaskStatus; summary: string };
 }
 
 interface QueueTaskView {
