@@ -24,13 +24,14 @@ export class BeadsClient implements IssueTracker {
 	}
 
 	async create(title: string, opts?: CreateIssueOpts): Promise<Issue> {
-		const args = ["issue", "create", title, "--json"];
+		const args = ["create", title, "--json"];
 		if (opts?.description) args.push("--description", opts.description);
 		if (opts?.type) args.push("--type", opts.type);
-		if (opts?.priority !== undefined) args.push("--priority", String(opts.priority));
-		if (opts?.parent) args.push("--parent", opts.parent);
+		if (opts?.priority !== undefined)
+			args.push("--priority", String(opts.priority));
 		if (opts?.externalRef) args.push("--external-ref", opts.externalRef);
-		for (const label of opts?.labels ?? []) args.push("--label", label);
+		const labels = opts?.labels ?? [];
+		if (labels.length > 0) args.push("--labels", labels.join(","));
 
 		const { stdout } = await pExecFile(this.#binary, args, {
 			cwd: this.#dir,
@@ -44,11 +45,13 @@ export class BeadsClient implements IssueTracker {
 		id: string,
 		fields: Partial<Pick<Issue, "title" | "description" | "status" | "priority">>,
 	): Promise<Issue> {
-		const args = ["issue", "update", id, "--json"];
+		const args = ["update", id, "--json"];
 		if (fields.title !== undefined) args.push("--title", fields.title);
-		if (fields.description !== undefined) args.push("--description", fields.description);
+		if (fields.description !== undefined)
+			args.push("--description", fields.description);
 		if (fields.status !== undefined) args.push("--status", fields.status);
-		if (fields.priority !== undefined) args.push("--priority", String(fields.priority));
+		if (fields.priority !== undefined)
+			args.push("--priority", String(fields.priority));
 
 		const { stdout } = await pExecFile(this.#binary, args, {
 			cwd: this.#dir,
@@ -58,7 +61,7 @@ export class BeadsClient implements IssueTracker {
 	}
 
 	async close(id: string): Promise<void> {
-		await pExecFile(this.#binary, ["issue", "close", id], {
+		await pExecFile(this.#binary, ["close", id], {
 			cwd: this.#dir,
 			encoding: "utf-8",
 		});
@@ -67,17 +70,16 @@ export class BeadsClient implements IssueTracker {
 	async show(id: string): Promise<Issue> {
 		const { stdout } = await pExecFile(
 			this.#binary,
-			["issue", "show", id, "--json"],
+			["show", id, "--json"],
 			{ cwd: this.#dir, encoding: "utf-8" },
 		);
 		return this.#toIssue(JSON.parse(stdout) as Record<string, unknown>);
 	}
 
 	async list(filter?: ListFilter): Promise<Issue[]> {
-		const args = ["issue", "list", "--json"];
+		const args = ["list", "--json"];
 		if (filter?.status) args.push("--status", filter.status);
 		if (filter?.label) args.push("--label", filter.label);
-		if (filter?.parent) args.push("--parent", filter.parent);
 
 		const { stdout } = await pExecFile(this.#binary, args, {
 			cwd: this.#dir,
@@ -88,19 +90,17 @@ export class BeadsClient implements IssueTracker {
 	}
 
 	async addDependency(blockedId: string, blockerId: string): Promise<void> {
-		await pExecFile(
-			this.#binary,
-			["dep", "add", blockedId, blockerId],
-			{ cwd: this.#dir, encoding: "utf-8" },
-		);
+		await pExecFile(this.#binary, ["link", blockedId, blockerId], {
+			cwd: this.#dir,
+			encoding: "utf-8",
+		});
 	}
 
 	async removeDependency(blockedId: string, blockerId: string): Promise<void> {
-		await pExecFile(
-			this.#binary,
-			["dep", "remove", blockedId, blockerId],
-			{ cwd: this.#dir, encoding: "utf-8" },
-		);
+		await pExecFile(this.#binary, ["dep", "remove", blockedId, blockerId], {
+			cwd: this.#dir,
+			encoding: "utf-8",
+		});
 	}
 
 	#toIssue(raw: Record<string, unknown>): Issue {
@@ -114,8 +114,12 @@ export class BeadsClient implements IssueTracker {
 			externalRef: raw.externalRef as string | undefined,
 			parent: raw.parent as string | undefined,
 			labels: (raw.labels as string[]) ?? [],
-			createdAt: String(raw.created_at ?? raw.createdAt ?? new Date().toISOString()),
-			updatedAt: String(raw.updated_at ?? raw.updatedAt ?? new Date().toISOString()),
+			createdAt: String(
+				raw.created_at ?? raw.createdAt ?? new Date().toISOString(),
+			),
+			updatedAt: String(
+				raw.updated_at ?? raw.updatedAt ?? new Date().toISOString(),
+			),
 		};
 	}
 }

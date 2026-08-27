@@ -12,6 +12,8 @@ export interface ForgeConfig {
 	owner: string;
 	/** Repository name. */
 	repo: string;
+	/** Gitea API version (v1 or v2). Only used when type is "gitea". */
+	apiVersion?: "v1" | "v2";
 }
 
 /** Continuous integration system configuration. */

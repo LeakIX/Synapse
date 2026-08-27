@@ -125,6 +125,7 @@ function parseForges(obj: Record<string, unknown>): ForgeConfig[] {
 		token: str(f, "token", `forges[${i}].token`),
 		owner: str(f, "owner", `forges[${i}].owner`),
 		repo: str(f, "repo", `forges[${i}].repo`),
+		apiVersion: (f.apiVersion as "v1" | "v2" | undefined) ?? undefined,
 	}));
 }
 

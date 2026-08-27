@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import type {
 	Event,
 	CommentPayload,
@@ -35,15 +35,21 @@ export class ForgeWebhookSource implements EventSource {
 					return new Response("Not Found", { status: 404 });
 				}
 
-				const signature =
-					req.headers.get("x-hub-signature-256") ??
-					req.headers.get("x-gitea-delivery") ??
-					"";
-				if (secret && !signature) {
-					return new Response("Invalid signature", { status: 401 });
-				}
-
 				const body = await req.text();
+
+				if (secret) {
+					const signature =
+						req.headers.get("x-gitea-signature") ??
+						req.headers.get("x-hub-signature-256") ??
+						"";
+					const expected = createHmac("sha256", secret)
+						.update(body)
+						.digest("hex");
+					const provided = signature.replace(/^sha256=/, "");
+					if (provided !== expected) {
+						return new Response("Invalid signature", { status: 401 });
+					}
+				}
 				let payload: Record<string, unknown>;
 				try {
 					payload = JSON.parse(body);

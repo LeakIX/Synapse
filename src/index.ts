@@ -38,7 +38,7 @@ export function createOrchestrator(
 		name: f.name,
 		client:
 			f.type === "gitea"
-				? new GiteaClient(f)
+				? new GiteaClient(f, f.apiVersion ?? "v1")
 				: new GitHubClient(f),
 	}));
 

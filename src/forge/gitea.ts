@@ -5,6 +5,8 @@ import type {
 } from "./types.ts";
 import type { ForgeConfig } from "../config/types.ts";
 
+export type GiteaApiVersion = "v1" | "v2";
+
 /**
  * ForgeClient for Gitea instances.
  * Uses the Gitea REST API with token auth.
@@ -12,10 +14,12 @@ import type { ForgeConfig } from "../config/types.ts";
 export class GiteaClient implements ForgeClient {
 	#base: string;
 	#token: string;
+	#apiVersion: GiteaApiVersion;
 
-	constructor(config: ForgeConfig) {
+	constructor(config: ForgeConfig, version: GiteaApiVersion = "v1") {
 		this.#base = config.url.replace(/\/$/, "");
 		this.#token = config.token;
+		this.#apiVersion = version;
 	}
 
 	async comment(
@@ -26,21 +30,21 @@ export class GiteaClient implements ForgeClient {
 	): Promise<void> {
 		await this.#request(
 			"POST",
-			`/api/v1/repos/${owner}/${repo}/issues/${number}/comments`,
+			`/api/${this.#apiVersion}/repos/${owner}/${repo}/issues/${number}/comments`,
 			{ body },
 		);
 	}
 
 	async react(
-		_owner: string,
-		_repo: string,
+		owner: string,
+		repo: string,
 		_issueOrPrNumber: number,
 		commentId: number,
 		emoji: string,
 	): Promise<void> {
 		await this.#request(
 			"POST",
-			`/api/v1/repos/${_owner}/${_repo}/issues/comments/${commentId}/reactions`,
+			`/api/${this.#apiVersion}/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`,
 			{ content: emoji },
 		);
 	}
@@ -53,7 +57,7 @@ export class GiteaClient implements ForgeClient {
 	): Promise<ForgeComment> {
 		const data = await this.#request<Record<string, unknown>>(
 			"GET",
-			`/api/v1/repos/${owner}/${repo}/issues/comments/${commentId}`,
+			`/api/${this.#apiVersion}/repos/${owner}/${repo}/issues/comments/${commentId}`,
 		);
 		return {
 			id: Number(data.id),
@@ -71,7 +75,7 @@ export class GiteaClient implements ForgeClient {
 	): Promise<ForgePr> {
 		const data = await this.#request<Record<string, unknown>>(
 			"GET",
-			`/api/v1/repos/${owner}/${repo}/pulls/${number}`,
+			`/api/${this.#apiVersion}/repos/${owner}/${repo}/pulls/${number}`,
 		);
 		return {
 			number: Number(data.number),
@@ -92,7 +96,7 @@ export class GiteaClient implements ForgeClient {
 	): Promise<ForgeComment[]> {
 		const data = await this.#request<Record<string, unknown>[]>(
 			"GET",
-			`/api/v1/repos/${owner}/${repo}/issues/${number}/comments`,
+			`/api/${this.#apiVersion}/repos/${owner}/${repo}/issues/${number}/comments`,
 		);
 		return data.map((c) => ({
 			id: Number(c.id),

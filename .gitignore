@@ -6,4 +6,5 @@ queue/archive/*
 queue/failed/*
 !queue/**/.gitkeep
 config.yaml
+.env
 *.log
