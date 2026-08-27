@@ -1,4 +1,6 @@
-# ai-orchestrator
+# Synapse
+
+The junction where signals (webhooks) are passed to the brain (agents).
 
 Event-driven agent task orchestrator. Listens for forge webhooks and beads changes, parses agent mentions, creates beads issues, dispatches work via a pluggable queue, and reports back to both the forge and beads.
 
@@ -23,35 +25,35 @@ Adding a new backend = new file + one case in the composition root. The orchestr
 
 ```
 Forge Webhook          Beads Watch
-     |                     |
-     v                     v
-  EventSource  --------->  EventSource
-     |                     |
-     +----------+----------+
-                |
-                v
-          EventParser (MentionParser)
-                |
-                v
-          Orchestrator.handleEvent()
-                |
-        +-------+-------+
-        |               |
-        v               v
-  IssueTracker      TaskQueue
-  (BeadsClient)    (FileQueue)
-        |               |
-        |               v
-        |          Agent claims task
-        |               |
-        |               v
-        |          Agent completes/fails
-        |               |
-        +-------+-------+
-                |
-                v
-          ForgeClient (comment back)
-          IssueTracker (close/update)
+      |                     |
+      v                     v
+   EventSource  --------->  EventSource
+      |                     |
+      +----------+----------+
+                 |
+                 v
+           EventParser (MentionParser)
+                 |
+                 v
+           Orchestrator.handleEvent()
+                 |
+         +-------+-------+
+         |               |
+         v               v
+   IssueTracker      TaskQueue
+   (BeadsClient)    (FileQueue)
+         |               |
+         |               v
+         |          Agent claims task
+         |               |
+         |               v
+         |          Agent completes/fails
+         |               |
+         +-------+-------+
+                 |
+                 v
+           ForgeClient (comment back)
+           IssueTracker (close/update)
 ```
 
 1. Human comments on a forge issue/PR: `@code-agent fix the failing test`
@@ -80,17 +82,20 @@ bun run src/index.ts config.yaml
 See `config.example.yaml` for a fully annotated example. All `${VAR}` references are expanded from environment variables. Use `${VAR:-default}` for optional values.
 
 ```yaml
-forge:
-  type: gitea
-  url: https://git.example.com
-  token: ${GITEA_TOKEN}
-  owner: myorg
-  repo: myrepo
+forges:
+  - name: primary
+    type: gitea
+    url: https://git.example.com
+    token: ${GITEA_TOKEN}
+    owner: myorg
+    repo: myrepo
 
-ci:
-  type: drone
-  url: https://ci.example.com
-  token: ${CI_TOKEN}
+cis:
+  - name: primary
+    type: drone
+    url: https://ci.example.com
+    token: ${CI_TOKEN}
+    forge: primary
 
 beads:
   dir: /path/to/repo
@@ -103,7 +108,6 @@ queue:
 agents:
   - name: code-agent
     emoji: "🔧"
-    capabilities: [code, refactoring]
 
 webhook:
   port: 8080
@@ -177,7 +181,7 @@ src/
     beads.ts        # bd CLI client
   queue/
     types.ts        # TaskQueue interface
-    file.ts         # File-based queue (JSONL)
+    file.ts         # File-based queue (JSON)
     memory.ts       # In-memory queue (tests)
   forge/
     types.ts        # ForgeClient interface
