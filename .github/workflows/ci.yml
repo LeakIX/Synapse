@@ -13,7 +13,7 @@ jobs:
       matrix:
         bun-version: ["1.4.0"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Bun
         uses: oven-sh/setup-bun@v2
