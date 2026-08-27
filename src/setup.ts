@@ -169,16 +169,8 @@ async function addAgent(existing: AgentConfig[]): Promise<AgentConfig[]> {
 		["🔧", "🧪", "👀", "📝", "🤖"],
 		0,
 	);
-	const capsRaw = await prompt(
-		"Capabilities (comma-separated):",
-		"code,refactoring",
-	);
-	const capabilities = capsRaw
-		.split(",")
-		.map((s) => s.trim())
-		.filter(Boolean);
 
-	const agent: AgentConfig = { name, emoji, capabilities };
+	const agent: AgentConfig = { name, emoji };
 	const updated = [...existing, agent];
 
 	const more = await promptBool("Add another agent?", false);

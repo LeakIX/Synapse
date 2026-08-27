@@ -16,8 +16,8 @@ const silentLogger: Logger = {
 };
 
 const agents: AgentConfig[] = [
-	{ name: "code-agent", emoji: "🔧", capabilities: ["code"] },
-	{ name: "test-agent", emoji: "🧪", capabilities: ["testing"] },
+	{ name: "code-agent", emoji: "🔧" },
+	{ name: "test-agent", emoji: "🧪" },
 ];
 
 // E2E test: full in-process system

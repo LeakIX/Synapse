@@ -71,7 +71,7 @@ describe("validateConfig", () => {
 			beads: { dir: "/tmp/beads", binary: "bd" },
 			queue: { type: "file", dir: "/tmp/queue" },
 			agents: [
-				{ name: "agent1", emoji: "🤖", capabilities: ["code"] },
+				{ name: "agent1", emoji: "🤖" },
 			],
 			webhook: { port: 8080, secret: "s3cret" },
 			parser: { type: "mention" },
@@ -104,7 +104,7 @@ describe("validateConfig", () => {
 			beads: { dir: "/tmp/beads", binary: "bd" },
 			queue: { type: "file", dir: "/tmp/queue" },
 			agents: [
-				{ name: "agent1", emoji: "🤖", capabilities: ["code"] },
+				{ name: "agent1", emoji: "🤖" },
 			],
 			webhook: { port: 8080, secret: "s3cret" },
 			parser: { type: "mention" },
@@ -155,7 +155,7 @@ describe("validateConfig", () => {
 			beads: { dir: "/tmp/beads", binary: "bd" },
 			queue: { type: "file", dir: "/tmp/queue" },
 			agents: [
-				{ name: "agent1", emoji: "🤖", capabilities: ["code"] },
+				{ name: "agent1", emoji: "🤖" },
 			],
 			webhook: { port: 8080, secret: "s3cret" },
 			parser: { type: "mention" },
@@ -242,8 +242,6 @@ queue:
 agents:
   - name: agent1
     emoji: "🤖"
-    capabilities:
-      - code
 webhook:
   port: 8080
   secret: s3cret
@@ -259,7 +257,7 @@ log:
 		expect(config.forges[0].owner).toBe("myorg");
 		expect(config.forges[0].repo).toBe("myrepo");
 		expect(config.cis[0].forge).toBe("primary");
-		expect(config.agents[0].capabilities).toEqual(["code"]);
+		expect(config.agents[0].name).toBe("agent1");
 	});
 
 	test("expands env vars in YAML", () => {
@@ -285,7 +283,6 @@ queue:
 agents:
   - name: a
     emoji: "🤖"
-    capabilities: []
 webhook:
   port: 9090
   secret: s
@@ -322,7 +319,6 @@ queue:
 agents:
   - name: a
     emoji: "🤖"
-    capabilities: []
 webhook:
   port: 9090
   secret: s
@@ -366,7 +362,7 @@ function baseConfig(): Record<string, unknown> {
 		],
 		beads: { dir: "/tmp", binary: "bd" },
 		queue: { type: "file", dir: "/tmp/q" },
-		agents: [{ name: "a", emoji: "🤖", capabilities: [] }],
+		agents: [{ name: "a", emoji: "🤖" }],
 		webhook: { port: 8080, secret: "s" },
 		parser: { type: "mention" },
 		log: { level: "info", format: "text" },

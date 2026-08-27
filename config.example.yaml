@@ -42,14 +42,8 @@ queue:
 agents:
   - name: code-agent
     emoji: "🔧"
-    capabilities:
-      - code
-      - refactoring
   - name: test-agent
     emoji: "🧪"
-    capabilities:
-      - testing
-      - review
 
 webhook:
   port: 8080

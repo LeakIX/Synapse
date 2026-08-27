@@ -4,8 +4,8 @@ import type { Event, CommentPayload } from "../../src/core/event.ts";
 import type { AgentConfig } from "../../src/config/types.ts";
 
 const agents: AgentConfig[] = [
-	{ name: "code-agent", emoji: "🔧", capabilities: ["code"] },
-	{ name: "test-agent", emoji: "🧪", capabilities: ["testing"] },
+	{ name: "code-agent", emoji: "🔧" },
+	{ name: "test-agent", emoji: "🧪" },
 ];
 
 const parser = new MentionParser(agents);

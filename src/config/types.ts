@@ -50,8 +50,6 @@ export interface AgentConfig {
 	name: string;
 	/** Emoji the agent reacts with when claiming a task. */
 	emoji: string;
-	/** What this agent can do (informational, used for routing). */
-	capabilities: string[];
 	/** Command to invoke the agent (for future dispatch). */
 	command?: string;
 }

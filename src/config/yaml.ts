@@ -81,7 +81,6 @@ export function validateConfig(
 		agents: (agents as Record<string, unknown>[]).map((a, i) => ({
 			name: str(a, "name", `agents[${i}].name`),
 			emoji: str(a, "emoji", `agents[${i}].emoji`),
-			capabilities: (a.capabilities as string[]) ?? [],
 			command: a.command as string | undefined,
 		})),
 		webhook: {

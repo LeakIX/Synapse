@@ -18,7 +18,7 @@ const silentLogger: Logger = {
 };
 
 const agents: AgentConfig[] = [
-	{ name: "code-agent", emoji: "🔧", capabilities: ["code"] },
+	{ name: "code-agent", emoji: "🔧" },
 ];
 
 class MockCi implements CiClient {
