@@ -16,8 +16,8 @@ const silentLogger: Logger = {
 };
 
 const agents: AgentConfig[] = [
-	{ name: "code-agent", emoji: "🔧", capabilities: ["code"] },
-	{ name: "test-agent", emoji: "🧪", capabilities: ["testing"] },
+	{ name: "code-agent", emoji: "🔧" },
+	{ name: "test-agent", emoji: "🧪" },
 ];
 
 // E2E test: full in-process system
@@ -43,7 +43,7 @@ describe("E2E: full system", () => {
 		orch = new Orchestrator({
 			tracker,
 			queue,
-			forge,
+			forges: [{ name: "test", client: forge }],
 			parser,
 			logger: silentLogger,
 			agents,
@@ -51,6 +51,7 @@ describe("E2E: full system", () => {
 
 		webhookSource = new ForgeWebhookSource(
 			{
+				name: "test",
 				type: "gitea",
 				url: "https://git.example.com",
 				token: "token",

@@ -9,7 +9,7 @@ import type { QueueTask } from "../../src/queue/types.ts";
 function makeTask(overrides: Partial<QueueTask> = {}): QueueTask {
 	return {
 		id: Math.random().toString(36).slice(2),
-		issueId: "leakix-test.1",
+		issueId: "test-abc.1",
 		agent: "agent1",
 		instruction: "do something",
 		urgency: "queued",

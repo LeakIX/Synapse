@@ -20,7 +20,7 @@ beforeAll(async () => {
 		join(repoDir, "queue", "pending", "task-1.json"),
 		JSON.stringify({
 			id: "task-1",
-			issueId: "leakix-test.1",
+			issueId: "test-abc.1",
 			agent: "code-agent",
 			instruction: "fix the bug",
 			urgency: "queued",
@@ -65,7 +65,7 @@ describe("Viewer server", () => {
 		expect(Array.isArray(tasks)).toBe(true);
 		expect(tasks).toHaveLength(1);
 		expect(tasks[0].id).toBe("task-1");
-		expect(tasks[0].issue_id).toBe("leakix-test.1");
+		expect(tasks[0].issue_id).toBe("test-abc.1");
 		expect(tasks[0].agent).toBe("code-agent");
 		expect(tasks[0].state).toBe("pending");
 	});

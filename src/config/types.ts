@@ -1,5 +1,7 @@
 /** Forge (code hosting) configuration. */
 export interface ForgeConfig {
+	/** Unique name for this forge, used to route events. */
+	name: string;
 	/** Which forge implementation to use. */
 	type: "gitea" | "github";
 	/** Base URL of the forge instance. */
@@ -14,12 +16,16 @@ export interface ForgeConfig {
 
 /** Continuous integration system configuration. */
 export interface CiConfig {
+	/** Unique name for this CI system. */
+	name: string;
 	/** Which CI implementation to use. */
 	type: "drone" | "woodpecker" | "github-actions";
 	/** Base URL of the CI instance. */
 	url: string;
 	/** API token, after env expansion. */
 	token: string;
+	/** Which forge this CI is associated with (by name). */
+	forge: string;
 }
 
 /** Beads issue tracker configuration. */
@@ -44,8 +50,6 @@ export interface AgentConfig {
 	name: string;
 	/** Emoji the agent reacts with when claiming a task. */
 	emoji: string;
-	/** What this agent can do (informational, used for routing). */
-	capabilities: string[];
 	/** Command to invoke the agent (for future dispatch). */
 	command?: string;
 }
@@ -74,8 +78,10 @@ export interface LogConfig {
 
 /** Top-level orchestrator configuration. */
 export interface OrchestratorConfig {
-	forge: ForgeConfig;
-	ci: CiConfig;
+	/** One or more forge instances. */
+	forges: ForgeConfig[];
+	/** One or more CI systems. */
+	cis: CiConfig[];
 	beads: BeadsConfig;
 	queue: QueueConfig;
 	agents: AgentConfig[];

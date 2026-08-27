@@ -10,9 +10,11 @@ const port = 19980;
 
 function ciConfig(): CiConfig {
 	return {
+		name: "test",
 		type: "drone",
 		url: `http://localhost:${port}`,
 		token: "ci-token",
+		forge: "test",
 	};
 }
 

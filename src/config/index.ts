@@ -10,3 +10,4 @@ export type {
 	LogConfig,
 } from "./types.ts";
 export type { ConfigSource } from "./source.ts";
+export { YamlConfigSource, expandEnvVars, validateConfig } from "./yaml.ts";

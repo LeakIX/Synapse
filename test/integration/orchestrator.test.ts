@@ -8,7 +8,6 @@ import type { Event, CommentPayload } from "../../src/core/event.ts";
 import type { AgentConfig } from "../../src/config/types.ts";
 import type { Logger } from "../../src/log/types.ts";
 
-// Silent logger for tests
 const silentLogger: Logger = {
 	debug: () => {},
 	info: () => {},
@@ -17,8 +16,8 @@ const silentLogger: Logger = {
 };
 
 const agents: AgentConfig[] = [
-	{ name: "code-agent", emoji: "🔧", capabilities: ["code"] },
-	{ name: "test-agent", emoji: "🧪", capabilities: ["testing"] },
+	{ name: "code-agent", emoji: "🔧" },
+	{ name: "test-agent", emoji: "🧪" },
 ];
 
 function makeCommentEvent(
@@ -50,12 +49,11 @@ function makeOrchestrator() {
 	const orch = new Orchestrator({
 		tracker,
 		queue,
-		forge,
+		forges: [{ name: "test", client: forge }],
 		parser,
 		logger: silentLogger,
 		agents,
 	});
-	// Start watching for completions so the orchestrator reacts
 	const stop = orch.watchCompletions();
 	return { orch, tracker, queue, forge, stop };
 }
@@ -64,55 +62,47 @@ describe("Orchestrator (integration)", () => {
 	test("full flow: comment -> issue -> queue -> completion -> forge comment", async () => {
 		const { orch, tracker, queue, forge } = makeOrchestrator();
 
-		// Simulate a human comment mentioning the agent
-		const event = makeCommentEvent("@code-agent fix the failing test in PR #42");
+		const event = makeCommentEvent(
+			"@code-agent fix the failing test in PR #42",
+		);
 		const tasks = await orch.handleEvent(event);
 
-		// 1. A beads issue was created
 		expect(tracker.count).toBe(1);
 		const issue = tracker.issues.values().next().value!;
 		expect(issue.title).toContain("code-agent");
 		expect(issue.labels).toContain("code-agent");
 
-		// 2. A task was published to the queue
 		expect(tasks).toHaveLength(1);
 		expect(queue.pendingCount).toBe(1);
 		expect(tasks[0].agent).toBe("code-agent");
 		expect(tasks[0].followUpAfter).toBe(42);
 
-		// 3. Agent claims the task
 		const claimed = await queue.claim("code-agent");
 		expect(claimed).not.toBeNull();
 		expect(queue.pendingCount).toBe(0);
 		expect(queue.activeCount).toBe(1);
 
-		// 4. Agent completes the task
 		await queue.complete(claimed!.id, {
 			status: "success",
 			summary: "fixed the test",
 		});
 
-		// Wait for the watch callback (MemoryQueue is synchronous)
-		// The watchCompletions callback should have fired
 		await new Promise((r) => setTimeout(r, 50));
 
-		// 5. The forge received a comment
 		expect(forge.comments).toHaveLength(1);
 		expect(forge.comments[0].number).toBe(42);
 		expect(forge.comments[0].body).toContain("code-agent");
 		expect(forge.comments[0].body).toContain("fixed the test");
 
-		// 6. The beads issue was closed
 		expect(issue.status).toBe("closed");
 	});
 
 	test("self-write filter: agent comments are ignored", async () => {
 		const { orch, tracker } = makeOrchestrator();
 
-		// Simulate a comment from the agent itself
 		const event = makeCommentEvent(
 			"@test-agent run the tests",
-			"code-agent", // authored by our agent
+			"code-agent",
 		);
 		const tasks = await orch.handleEvent(event);
 
@@ -123,7 +113,9 @@ describe("Orchestrator (integration)", () => {
 	test("no mention: no task created", async () => {
 		const { orch, tracker, queue } = makeOrchestrator();
 
-		const event = makeCommentEvent("just a regular comment, no mentions");
+		const event = makeCommentEvent(
+			"just a regular comment, no mentions",
+		);
 		const tasks = await orch.handleEvent(event);
 
 		expect(tasks).toHaveLength(0);
@@ -163,12 +155,10 @@ describe("Orchestrator (integration)", () => {
 
 		await new Promise((r) => setTimeout(r, 50));
 
-		// Forge got a failure comment
 		expect(forge.comments).toHaveLength(1);
 		expect(forge.comments[0].body).toContain("failed");
 		expect(forge.comments[0].body).toContain("could not find the bug");
 
-		// Issue is marked blocked, not closed
 		const issue = tracker.issues.values().next().value!;
 		expect(issue.status).toBe("blocked");
 	});
@@ -207,7 +197,6 @@ describe("Orchestrator (integration)", () => {
 	});
 
 	test("watchCompletions returns a stop function", async () => {
-		// Use a fresh orchestrator without the auto-started watcher
 		const tracker = new MockTracker();
 		const queue = new MemoryQueue();
 		const forge = new MockForge();
@@ -215,7 +204,7 @@ describe("Orchestrator (integration)", () => {
 		const orch = new Orchestrator({
 			tracker,
 			queue,
-			forge,
+			forges: [{ name: "test", client: forge }],
 			parser,
 			logger: silentLogger,
 			agents,
@@ -224,7 +213,6 @@ describe("Orchestrator (integration)", () => {
 		const stop = orch.watchCompletions();
 		expect(typeof stop).toBe("function");
 
-		// Publish and complete a task while watching
 		const event = makeCommentEvent("@code-agent do something");
 		await orch.handleEvent(event);
 		const claimed = await queue.claim("code-agent");
@@ -235,10 +223,8 @@ describe("Orchestrator (integration)", () => {
 		await new Promise((r) => setTimeout(r, 50));
 		expect(forge.comments).toHaveLength(1);
 
-		// Stop watching
 		stop();
 
-		// Complete another task - should NOT trigger a forge comment
 		const event2 = makeCommentEvent("@code-agent do something else");
 		await orch.handleEvent(event2);
 		const claimed2 = await queue.claim("code-agent");
@@ -248,7 +234,6 @@ describe("Orchestrator (integration)", () => {
 		});
 		await new Promise((r) => setTimeout(r, 50));
 
-		// Still only 1 comment (the watcher was stopped)
 		expect(forge.comments).toHaveLength(1);
 	});
 
@@ -264,7 +249,6 @@ describe("Orchestrator (integration)", () => {
 		expect(tasks[0].forgeContext!.number).toBe(42);
 		expect(tasks[0].forgeContext!.commentId).toBe(99);
 
-		// Complete and verify the forge comment goes to the right place
 		const claimed = await queue.claim("code-agent");
 		await queue.complete(claimed!.id, {
 			status: "success",
