@@ -66,7 +66,7 @@ describe("Orchestrator + CiGate (integration)", () => {
 		const orch = new Orchestrator({
 			tracker,
 			queue,
-			forge: new MockForge(),
+			forges: [{ name: "test", client: new MockForge() }],
 			parser: new MentionParser(agents),
 			logger: silentLogger,
 			agents,
@@ -78,12 +78,10 @@ describe("Orchestrator + CiGate (integration)", () => {
 		);
 		const tasks = await orch.handleEvent(event);
 
-		// Task was created but NOT published to queue (CI gate blocked it)
 		expect(tasks).toHaveLength(1);
 		expect(queue.pendingCount).toBe(0);
 		expect(tracker.count).toBe(1);
 
-		// Issue is marked blocked
 		const issue = tracker.issues.values().next().value!;
 		expect(issue.status).toBe("blocked");
 	});
@@ -96,7 +94,7 @@ describe("Orchestrator + CiGate (integration)", () => {
 		const orch = new Orchestrator({
 			tracker,
 			queue,
-			forge: new MockForge(),
+			forges: [{ name: "test", client: new MockForge() }],
 			parser: new MentionParser(agents),
 			logger: silentLogger,
 			agents,
@@ -108,12 +106,10 @@ describe("Orchestrator + CiGate (integration)", () => {
 		);
 		const tasks = await orch.handleEvent(event);
 
-		// Task was published to queue
 		expect(tasks).toHaveLength(1);
 		expect(queue.pendingCount).toBe(1);
 		expect(tracker.count).toBe(1);
 
-		// Issue is open (not blocked)
 		const issue = tracker.issues.values().next().value!;
 		expect(issue.status).toBe("open");
 	});
@@ -126,18 +122,16 @@ describe("Orchestrator + CiGate (integration)", () => {
 		const orch = new Orchestrator({
 			tracker,
 			queue,
-			forge: new MockForge(),
+			forges: [{ name: "test", client: new MockForge() }],
 			parser: new MentionParser(agents),
 			logger: silentLogger,
 			agents,
 			ciGate: gate,
 		});
 
-		// No PR number in the instruction, so no followUpAfter
 		const event = makeCommentEvent("@code-agent fix the bug");
 		const tasks = await orch.handleEvent(event);
 
-		// Task is published even though CI is failing (no followUpAfter)
 		expect(tasks).toHaveLength(1);
 		expect(queue.pendingCount).toBe(1);
 	});
@@ -150,25 +144,19 @@ describe("Orchestrator + CiGate (integration)", () => {
 		const orch = new Orchestrator({
 			tracker,
 			queue,
-			forge: new MockForge(),
+			forges: [{ name: "test", client: new MockForge() }],
 			parser: new MentionParser(agents),
 			logger: silentLogger,
 			agents,
 			ciGate: gate,
 		});
 
-		// First: CI is failing, task is held
-		const event = makeCommentEvent(
-			"@code-agent review PR #42",
-		);
+		const event = makeCommentEvent("@code-agent review PR #42");
 		await orch.handleEvent(event);
 		expect(queue.pendingCount).toBe(0);
 
-		// Now CI passes. A new event for the same follow-up should dispatch.
 		ci.status = "passing";
-		const event2 = makeCommentEvent(
-			"@code-agent review PR #42 again",
-		);
+		const event2 = makeCommentEvent("@code-agent review PR #42 again");
 		const tasks = await orch.handleEvent(event2);
 		expect(tasks).toHaveLength(1);
 		expect(queue.pendingCount).toBe(1);

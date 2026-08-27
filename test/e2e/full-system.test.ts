@@ -43,7 +43,7 @@ describe("E2E: full system", () => {
 		orch = new Orchestrator({
 			tracker,
 			queue,
-			forge,
+			forges: [{ name: "test", client: forge }],
 			parser,
 			logger: silentLogger,
 			agents,
@@ -51,6 +51,7 @@ describe("E2E: full system", () => {
 
 		webhookSource = new ForgeWebhookSource(
 			{
+				name: "test",
 				type: "gitea",
 				url: "https://git.example.com",
 				token: "token",

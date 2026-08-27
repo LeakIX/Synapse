@@ -8,6 +8,7 @@ const port = 19991;
 
 function giteaConfig(): ForgeConfig {
 	return {
+		name: "test",
 		type: "gitea",
 		url: `http://localhost:${port}`,
 		token: "test-token",
@@ -159,6 +160,7 @@ describe("GiteaClient", () => {
 			},
 		});
 		const authClient = new GiteaClient({
+			name: "auth",
 			type: "gitea",
 			url: "http://localhost:19992",
 			token: "secret-token",

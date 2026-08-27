@@ -4,6 +4,7 @@ import type { ForgeConfig } from "../../src/config/types.ts";
 import type { Event, CommentPayload, PrPayload } from "../../src/core/event.ts";
 
 const forgeConfig: ForgeConfig = {
+	name: "test",
 	type: "gitea",
 	url: "https://git.example.com",
 	token: "token",

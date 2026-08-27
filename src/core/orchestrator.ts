@@ -14,22 +14,23 @@ import { randomUUID } from "node:crypto";
  * Depends only on interfaces:
  *   - IssueTracker: create/update/close beads issues
  *   - TaskQueue: publish tasks, watch for completion
- *   - ForgeClient: comment back on the forge
+ *   - ForgeClient: comment back on the forge (one per named forge)
  *   - EventParser: extract instructions from events
  *   - Logger: log activity
  *   - AgentConfig[]: agent definitions
+ *   - CiGate: optional CI gating for follow-up tasks
  *
  * Event handling:
  *   1. Receive an Event
  *   2. Filter out self-writes (agent-authored comments)
  *   3. Parse for agent mentions
  *   4. For each instruction: create a beads issue, publish to queue
- *   5. On task completion: comment back on the forge
+ *   5. On task completion: comment back on the correct forge
  */
 export class Orchestrator {
 	#tracker: IssueTracker;
 	#queue: TaskQueue;
-	#forge: ForgeClient;
+	#defaultForge: ForgeClient;
 	#parser: EventParser;
 	#logger: Logger;
 	#agents: Map<string, AgentConfig>;
@@ -39,7 +40,8 @@ export class Orchestrator {
 	constructor(deps: {
 		tracker: IssueTracker;
 		queue: TaskQueue;
-		forge: ForgeClient;
+		/** Named forge clients. The first one is the default. */
+		forges: Array<{ name: string; client: ForgeClient }>;
 		parser: EventParser;
 		logger: Logger;
 		agents: AgentConfig[];
@@ -47,7 +49,10 @@ export class Orchestrator {
 	}) {
 		this.#tracker = deps.tracker;
 		this.#queue = deps.queue;
-		this.#forge = deps.forge;
+		this.#defaultForge = deps.forges[0]?.client;
+		if (!this.#defaultForge) {
+			throw new Error("orchestrator: at least one forge is required");
+		}
 		this.#parser = deps.parser;
 		this.#logger = deps.logger;
 		this.#agents = new Map(deps.agents.map((a) => [a.name, a]));
@@ -60,7 +65,6 @@ export class Orchestrator {
 	 * Returns the tasks that were published (for testing).
 	 */
 	async handleEvent(event: Event): Promise<QueueTask[]> {
-		// Filter out self-writes
 		if (this.#isSelfWrite(event)) {
 			this.#logger.debug("ignoring self-write", {
 				source: event.source,
@@ -69,7 +73,6 @@ export class Orchestrator {
 			return [];
 		}
 
-		// Parse for instructions
 		const instructions = await this.#parser.parse(event);
 		if (instructions.length === 0) {
 			this.#logger.debug("no instructions found", {
@@ -130,7 +133,6 @@ export class Orchestrator {
 			throw new Error(`unknown agent: ${inst.agentName}`);
 		}
 
-		// Create a beads issue for tracking
 		const issue = await this.#tracker.create(
 			`[${inst.agentName}] ${inst.instruction.slice(0, 80)}`,
 			{
@@ -140,7 +142,6 @@ export class Orchestrator {
 			},
 		);
 
-		// Build forge context if the event came from a forge
 		let forgeContext;
 		if (event.kind === "comment") {
 			const cp = event.payload as {
@@ -170,7 +171,6 @@ export class Orchestrator {
 			createdAt: new Date().toISOString(),
 		};
 
-		// CI gate: if this is a follow-up, check CI before dispatching
 		if (this.#ciGate && inst.followUpAfter !== undefined) {
 			const ready = await this.#ciGate.isReady(task);
 			if (!ready) {
@@ -178,11 +178,9 @@ export class Orchestrator {
 					taskId: task.id,
 					followUpAfter: inst.followUpAfter,
 				});
-				// Update the issue to reflect it's waiting on CI
 				await this.#tracker.update(issue.id, {
 					status: "blocked",
 				});
-				// Don't publish to queue yet; return the task but mark it held
 				return { ...task, claimedAt: undefined };
 			}
 		}
@@ -205,7 +203,6 @@ export class Orchestrator {
 			summary: task.result?.summary,
 		});
 
-		// Close the beads issue
 		try {
 			await this.#tracker.close(task.issueId);
 		} catch (err) {
@@ -215,13 +212,13 @@ export class Orchestrator {
 			});
 		}
 
-		// Report back to the forge
 		if (task.forgeContext) {
+			const forge = this.#defaultForge;
 			const agent = this.#agents.get(task.agent);
 			const emoji = agent?.emoji ?? "✅";
 			const body = `${emoji} **${task.agent}** completed: ${task.result?.summary ?? "done"}`;
 			try {
-				await this.#forge.comment(
+				await forge.comment(
 					task.forgeContext.owner,
 					task.forgeContext.repo,
 					task.forgeContext.number,
@@ -239,7 +236,6 @@ export class Orchestrator {
 			}
 		}
 
-		// Archive the task
 		await this.#queue.archive(task.id);
 	}
 
@@ -250,7 +246,6 @@ export class Orchestrator {
 			summary: task.result?.summary,
 		});
 
-		// Update the beads issue to reflect failure
 		try {
 			await this.#tracker.update(task.issueId, {
 				status: "blocked",
@@ -262,11 +257,11 @@ export class Orchestrator {
 			});
 		}
 
-		// Report back to the forge
 		if (task.forgeContext) {
+			const forge = this.#defaultForge;
 			const body = `⚠️ **${task.agent}** failed: ${task.result?.summary ?? "unknown error"}`;
 			try {
-				await this.#forge.comment(
+				await forge.comment(
 					task.forgeContext.owner,
 					task.forgeContext.repo,
 					task.forgeContext.number,

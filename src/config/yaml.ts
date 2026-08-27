@@ -1,6 +1,10 @@
 import { readFileSync } from "node:fs";
 import { parse } from "yaml";
-import type { OrchestratorConfig } from "./types.ts";
+import type {
+	OrchestratorConfig,
+	ForgeConfig,
+	CiConfig,
+} from "./types.ts";
 import type { ConfigSource } from "./source.ts";
 
 /**
@@ -27,12 +31,9 @@ export class YamlConfigSource implements ConfigSource {
 
 /** Replace ${VAR} and ${VAR:-default} patterns with env values. */
 export function expandEnvVars(input: string): string {
-	// Match ${VAR} or ${VAR:-default} using a single capture group for the
-	// whole interior, then split on ":-" to extract name and default.
 	return input.replace(/\$\{([^}]+)\}/g, (_, interior: string) => {
 		const sepIdx = interior.indexOf(":-");
 		if (sepIdx === -1) {
-			// Simple ${VAR}
 			return process.env[interior] ?? "";
 		}
 		const name = interior.slice(0, sepIdx);
@@ -46,21 +47,20 @@ export function expandEnvVars(input: string): string {
 export function validateConfig(
 	obj: Record<string, unknown>,
 ): OrchestratorConfig {
-	const forge = obj.forge as Record<string, unknown>;
-	const ci = obj.ci as Record<string, unknown>;
+	// Forges: accept both `forge:` (single) and `forges:` (array)
+	const forges = parseForges(obj);
+	const cis = parseCis(obj);
 	const beads = obj.beads as Record<string, unknown>;
 	const queue = obj.queue as Record<string, unknown>;
 	const webhook = obj.webhook as Record<string, unknown>;
 	const parser = obj.parser as Record<string, unknown>;
 	const log = obj.log as Record<string, unknown>;
 
-	requireKey(obj, "forge", "forge config");
-	requireKey(obj, "ci", "ci config");
-	requireKey(obj, "beads", "beads config");
-	requireKey(obj, "queue", "queue config");
-	requireKey(obj, "webhook", "webhook config");
-	requireKey(obj, "parser", "parser config");
-	requireKey(obj, "log", "log config");
+	if (!beads) throw new Error("config: missing required key \"beads\"");
+	if (!queue) throw new Error("config: missing required key \"queue\"");
+	if (!webhook) throw new Error("config: missing required key \"webhook\"");
+	if (!parser) throw new Error("config: missing required key \"parser\"");
+	if (!log) throw new Error("config: missing required key \"log\"");
 
 	const agents = obj.agents;
 	if (!Array.isArray(agents) || agents.length === 0) {
@@ -68,18 +68,8 @@ export function validateConfig(
 	}
 
 	return {
-		forge: {
-			type: forge.type as "gitea" | "github",
-			url: str(forge, "url", "forge.url"),
-			token: str(forge, "token", "forge.token"),
-			owner: str(forge, "owner", "forge.owner"),
-			repo: str(forge, "repo", "forge.repo"),
-		},
-		ci: {
-			type: ci.type as "drone" | "woodpecker" | "github-actions",
-			url: str(ci, "url", "ci.url"),
-			token: str(ci, "token", "ci.token"),
-		},
+		forges,
+		cis,
 		beads: {
 			dir: str(beads, "dir", "beads.dir"),
 			binary: str(beads, "binary", "beads.binary"),
@@ -108,14 +98,52 @@ export function validateConfig(
 	};
 }
 
-function requireKey(
+function optionalStr(
 	obj: Record<string, unknown>,
 	key: string,
-	label: string,
-): void {
-	if (!(key in obj)) {
-		throw new Error(`config: missing required key "${key}" (${label})`);
+	fallback: string,
+): string {
+	const val = obj[key];
+	if (typeof val === "string" && val.length > 0) return val;
+	return fallback;
+}
+
+function parseForges(obj: Record<string, unknown>): ForgeConfig[] {
+	const raw = obj.forges ?? obj.forge;
+	if (raw === undefined) {
+		throw new Error('config: missing required key "forges" (or "forge")');
 	}
+	const arr: Record<string, unknown>[] = Array.isArray(raw)
+		? (raw as Record<string, unknown>[])
+		: [raw as Record<string, unknown>];
+	if (arr.length === 0) {
+		throw new Error("config: forges must be a non-empty array");
+	}
+	return arr.map((f, i) => ({
+		name: optionalStr(f, "name", `forge-${i + 1}`),
+		type: f.type as "gitea" | "github",
+		url: str(f, "url", `forges[${i}].url`),
+		token: str(f, "token", `forges[${i}].token`),
+		owner: str(f, "owner", `forges[${i}].owner`),
+		repo: str(f, "repo", `forges[${i}].repo`),
+	}));
+}
+
+function parseCis(obj: Record<string, unknown>): CiConfig[] {
+	const raw = obj.cis ?? obj.ci;
+	if (raw === undefined) {
+		return [];
+	}
+	const arr: Record<string, unknown>[] = Array.isArray(raw)
+		? (raw as Record<string, unknown>[])
+		: [raw as Record<string, unknown>];
+	return arr.map((c, i) => ({
+		name: optionalStr(c, "name", `ci-${i + 1}`),
+		type: c.type as "drone" | "woodpecker" | "github-actions",
+		url: str(c, "url", `cis[${i}].url`),
+		token: str(c, "token", `cis[${i}].token`),
+		forge: optionalStr(c, "forge", "default"),
+	}));
 }
 
 function str(

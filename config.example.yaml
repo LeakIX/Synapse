@@ -2,21 +2,37 @@
 #
 # All ${VAR} references are expanded from environment variables.
 # Use ${VAR:-default} for optional values with defaults.
+#
+# Run `bun run setup` for an interactive setup wizard.
 
-forge:
-  type: gitea # or: github
-  url: gitea.com
-  token: ${GITEA_TOKEN}
-  owner: foo
-  repo: bar
+forges:
+  - name: primary
+    type: gitea
+    url: https://git.example.com
+    token: ${GITEA_TOKEN}
+    owner: myorg
+    repo: myrepo
+  - name: secondary
+    type: github
+    url: https://github.com
+    token: ${GITHUB_TOKEN}
+    owner: myuser
+    repo: myproject
 
-ci:
-  type: drone # or: woodpecker, github-actions
-  url: https://ci.com
-  token: ${CI_TOKEN}
+cis:
+  - name: drone-primary
+    type: drone
+    url: https://ci.example.com
+    token: ${CI_TOKEN}
+    forge: primary
+  - name: gh-actions
+    type: github-actions
+    url: https://api.github.com
+    token: ${GITHUB_TOKEN}
+    forge: secondary
 
 beads:
-  dir: /path/to/project
+  dir: /path/to/repo
   binary: bd
 
 queue:
@@ -43,5 +59,5 @@ parser:
   type: mention
 
 log:
-  level: info # debug, info, warn, error
-  format: text # text, json
+  level: info
+  format: text

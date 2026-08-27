@@ -17,7 +17,7 @@ describe("BeadsClient", () => {
 		const issue = await c.create("Test task");
 		expect(issue.title).toBe("Test task");
 		expect(issue.status).toBe("open");
-		expect(issue.id).toBe("leakix-abc.1");
+		expect(issue.id).toBe("test-abc.1");
 	});
 
 	test("create with options passes flags", async () => {
@@ -34,21 +34,21 @@ describe("BeadsClient", () => {
 	test("update returns updated issue", async () => {
 		const { client, cleanup: cl } = createFakeBd();
 		cleanup = cl;
-		const issue = await client.update("leakix-abc.1", { status: "in_progress" });
+		const issue = await client.update("test-abc.1", { status: "in_progress" });
 		expect(issue.status).toBe("in_progress");
 	});
 
 	test("close does not throw", async () => {
 		const { client, cleanup: cl } = createFakeBd();
 		cleanup = cl;
-		await expect(client.close("leakix-abc.1")).resolves.toBeUndefined();
+		await expect(client.close("test-abc.1")).resolves.toBeUndefined();
 	});
 
 	test("show returns the issue", async () => {
 		const { client, cleanup: cl } = createFakeBd();
 		cleanup = cl;
-		const issue = await client.show("leakix-abc.1");
-		expect(issue.id).toBe("leakix-abc.1");
+		const issue = await client.show("test-abc.1");
+		expect(issue.id).toBe("test-abc.1");
 		expect(issue.title).toBe("shown");
 		expect(issue.labels).toEqual(["x"]);
 	});
@@ -58,8 +58,8 @@ describe("BeadsClient", () => {
 		cleanup = cl;
 		const issues = await client.list();
 		expect(issues).toHaveLength(2);
-		expect(issues[0].id).toBe("leakix-abc.1");
-		expect(issues[1].id).toBe("leakix-abc.2");
+		expect(issues[0].id).toBe("test-abc.1");
+		expect(issues[1].id).toBe("test-abc.2");
 	});
 
 	test("list with status filter passes --status", async () => {
@@ -73,7 +73,7 @@ describe("BeadsClient", () => {
 		const { client, cleanup: cl } = createFakeBd();
 		cleanup = cl;
 		await expect(
-			client.addDependency("leakix-abc.1", "leakix-abc.2"),
+			client.addDependency("test-abc.1", "test-abc.2"),
 		).resolves.toBeUndefined();
 	});
 
@@ -81,7 +81,7 @@ describe("BeadsClient", () => {
 		const { client, cleanup: cl } = createFakeBd();
 		cleanup = cl;
 		await expect(
-			client.removeDependency("leakix-abc.1", "leakix-abc.2"),
+			client.removeDependency("test-abc.1", "test-abc.2"),
 		).resolves.toBeUndefined();
 	});
 });

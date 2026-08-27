@@ -27,7 +27,7 @@ case "$cmd" in
       esac
       shift
     done
-    echo '{"id":"leakix-abc.1","title":"'"$title"'","description":"","status":"open","priority":2,"type":"task","labels":[],"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}'
+    echo '{"id":"test-abc.1","title":"'"$title"'","description":"","status":"open","priority":2,"type":"task","labels":[],"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}'
     ;;
   "issue update")
     id="$3"
@@ -41,7 +41,7 @@ case "$cmd" in
     echo '{"id":"'"$id"'","title":"shown","description":"desc","status":"open","priority":3,"type":"task","labels":["x"],"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}'
     ;;
   "issue list")
-    echo '[{"id":"leakix-abc.1","title":"one","description":"","status":"open","priority":2,"type":"task","labels":[],"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"},{"id":"leakix-abc.2","title":"two","description":"","status":"closed","priority":1,"type":"task","labels":["done"],"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-02T00:00:00Z"}]'
+    echo '[{"id":"test-abc.1","title":"one","description":"","status":"open","priority":2,"type":"task","labels":[],"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"},{"id":"test-abc.2","title":"two","description":"","status":"closed","priority":1,"type":"task","labels":["done"],"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-02T00:00:00Z"}]'
     ;;
   "dep add")
     echo "dep added"

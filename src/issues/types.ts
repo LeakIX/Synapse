@@ -8,7 +8,7 @@ export type IssueStatus =
 
 /** A tracked issue in the issue tracker. */
 export interface Issue {
-	/** Tracker-specific unique ID (e.g. beads ID like "leakix-82c.19"). */
+	/** Tracker-specific unique ID (e.g. beads ID like "proj-82c.19"). */
 	id: string;
 	title: string;
 	description: string;
