@@ -12,6 +12,14 @@ export interface HarnessTask {
 }
 
 /** What the harness reports back. */
+export interface HarnessModel {
+	/** Model that did the work, as "provider/model-id". */
+	model: string;
+	/** URL used to reach this model. */
+	url?: string;
+}
+
+/** What the harness reports back. */
 export interface HarnessResult {
 	status: TaskStatus;
 	/**
@@ -21,11 +29,15 @@ export interface HarnessResult {
 	summary: string;
 	/** Full output, kept on the task record. */
 	output?: string;
-	/**
-	 * Model that did the work, as "provider/model-id". A harness that
-	 * cannot tell leaves this out, and the agent uses its own default.
-	 */
+	/** One model that did the work, kept for backward compatibility. */
 	model?: string;
+	/** URL used to reach the single model in `model`. */
+	modelUrl?: string;
+	/**
+	 * Models that did the work. This supports model fleets.
+	 * A harness that cannot tell leaves this out, and the agent uses its own default.
+	 */
+	models?: HarnessModel[];
 }
 
 /**
