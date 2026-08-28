@@ -8,3 +8,6 @@ queue/failed/*
 config.yaml
 .env
 *.log
+# Notes and plans (symlinks into the private notes-plans repository)
+.notes
+.plans
