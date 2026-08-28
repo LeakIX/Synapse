@@ -82,13 +82,17 @@ export function parseWebhookPayload(
 	payload: Record<string, unknown>,
 ): Event | null {
 	const action = String(payload.action ?? "");
-	const repo = payload.repo as Record<string, unknown> | undefined;
+	// Gitea and GitHub both name the repository "repository". Keep "repo"
+	// as a fallback, because a hand-built payload may use the short name.
+	const repo = (payload.repository ?? payload.repo) as
+		| Record<string, unknown>
+		| undefined;
 	if (!repo) return null;
 
+	// Gitea calls the owner "username", GitHub calls it "login".
+	const repoOwner = repo.owner as Record<string, unknown> | undefined;
 	const owner = String(
-		(repo.owner as Record<string, unknown>)?.name ??
-			(repo.owner as Record<string, unknown>)?.login ??
-			"",
+		repoOwner?.name ?? repoOwner?.login ?? repoOwner?.username ?? "",
 	);
 	const repoName = String(repo.name ?? "");
 

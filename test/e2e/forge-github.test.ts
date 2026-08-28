@@ -49,7 +49,6 @@ describe("E2E: GitHub forge round trip", () => {
 			body: JSON.stringify({
 				action: "created",
 				repository: { name: repo, owner: { login: owner } },
-				repo: { name: repo, owner: { login: owner } },
 				issue: {
 					number,
 					title: "Some issue",
