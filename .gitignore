@@ -11,3 +11,7 @@ config.yaml
 # Notes and plans (symlinks into the private notes-plans repository)
 .notes
 .plans
+
+# Viewer frontend build output
+src/viewer/web/.svelte-kit
+src/viewer/web/build
