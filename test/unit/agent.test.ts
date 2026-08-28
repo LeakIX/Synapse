@@ -5,6 +5,7 @@ import { MemoryQueue } from "../../src/queue/memory.ts";
 import type { QueueTask } from "../../src/queue/types.ts";
 import type { ForgeClient, ForgeComment, ForgePr } from "../../src/forge/types.ts";
 import type { Logger } from "../../src/log/types.ts";
+import type { AgentHarness, HarnessResult, HarnessTask } from "../../src/harness/types.ts";
 
 const silentLogger: Logger = {
 	debug: () => {},
@@ -67,6 +68,19 @@ class MockForge implements ForgeClient {
 		_n: number,
 	): Promise<ForgeComment[]> {
 		return [];
+	}
+}
+
+class StaticHarness implements AgentHarness {
+	readonly name = "command" as const;
+	#result: HarnessResult;
+
+	constructor(result: HarnessResult) {
+		this.#result = result;
+	}
+
+	async run(_task: HarnessTask): Promise<HarnessResult> {
+		return this.#result;
 	}
 }
 
@@ -190,6 +204,66 @@ describe("Agent", () => {
 
 		expect(queue.done).toHaveLength(1);
 		expect(queue.done[0].result?.summary).toContain("Model: ollama/llama3");
+	});
+
+	test("records the model URL in the result summary", async () => {
+		const task = makeTask();
+		await queue.publish(task);
+
+		const agent = new Agent({
+			name: "code-agent",
+			emoji: "🔧",
+			harness: new CommandHarness({ command: "echo hello" }),
+			queue,
+			forge,
+			logger: silentLogger,
+			model: "ollama/llama3",
+			modelUrl: "http://127.0.0.1:11434",
+			pollIntervalMs: 100,
+		});
+
+		const stop = agent.start();
+		await new Promise((r) => setTimeout(r, 500));
+		stop();
+
+		expect(queue.done).toHaveLength(1);
+		expect(queue.done[0].result?.summary).toContain(
+			"Model URL: http://127.0.0.1:11434",
+		);
+	});
+
+	test("records all models when the harness returns a model fleet", async () => {
+		const task = makeTask();
+		await queue.publish(task);
+
+		const agent = new Agent({
+			name: "code-agent",
+			emoji: "🔧",
+			harness: new StaticHarness({
+				status: "success",
+				summary: "done: fleet",
+				models: [
+					{ model: "openai/gpt-5", url: "https://api.openai.com/v1" },
+					{ model: "anthropic/claude-opus-4.6", url: "https://api.anthropic.com" },
+				],
+			}),
+			queue,
+			forge,
+			logger: silentLogger,
+			model: "fallback/model",
+			pollIntervalMs: 100,
+		});
+
+		const stop = agent.start();
+		await new Promise((r) => setTimeout(r, 500));
+		stop();
+
+		expect(queue.done).toHaveLength(1);
+		const summary = queue.done[0].result?.summary ?? "";
+		expect(summary).toContain("Model: openai/gpt-5");
+		expect(summary).toContain("Model URL: https://api.openai.com/v1");
+		expect(summary).toContain("Model: anthropic/claude-opus-4.6");
+		expect(summary).toContain("Model URL: https://api.anthropic.com");
 	});
 
 	test("marks task as failed when command exits non-zero", async () => {

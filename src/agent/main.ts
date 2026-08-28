@@ -10,7 +10,7 @@ import { createAgent } from "./agent.ts";
  *
  * Usage:
  *   bun run src/agent/main.ts --agent code-agent --model ollama/llama3
- *   bun run src/agent/main.ts --agent code-agent --model ollama/llama3 --config config.yaml
+ *   bun run src/agent/main.ts --agent code-agent --model ollama/llama3 --model-url http://127.0.0.1:11434 --config config.yaml
  *
  * The agent polls the queue for tasks matching its name, executes them,
  * and reports the result back. It records the model in every result.
@@ -20,6 +20,7 @@ function parseArgs() {
 	const args = process.argv.slice(2);
 	let agentName = "";
 	let model = "unknown/unknown";
+	let modelUrl: string | undefined;
 	let configPath = "config.yaml";
 	let pollIntervalMs = 5000;
 
@@ -29,6 +30,9 @@ function parseArgs() {
 			i++;
 		} else if (args[i] === "--model" && i + 1 < args.length) {
 			model = args[i + 1];
+			i++;
+		} else if (args[i] === "--model-url" && i + 1 < args.length) {
+			modelUrl = args[i + 1];
 			i++;
 		} else if (args[i] === "--config" && i + 1 < args.length) {
 			configPath = args[i + 1];
@@ -40,15 +44,15 @@ function parseArgs() {
 	}
 
 	if (!agentName) {
-		console.error("Usage: bun run src/agent/main.ts --agent <name> --model <provider/model> [--config path] [--poll ms]");
+		console.error("Usage: bun run src/agent/main.ts --agent <name> --model <provider/model> [--model-url url] [--config path] [--poll ms]");
 		process.exit(1);
 	}
 
-	return { agentName, model, configPath, pollIntervalMs };
+	return { agentName, model, modelUrl, configPath, pollIntervalMs };
 }
 
 export async function main(): Promise<void> {
-	const { agentName, model, configPath, pollIntervalMs } = parseArgs();
+	const { agentName, model, modelUrl, configPath, pollIntervalMs } = parseArgs();
 
 	const source = new YamlConfigSource(configPath);
 	const config = source.load();
@@ -77,6 +81,7 @@ export async function main(): Promise<void> {
 		},
 		agentName,
 		model,
+		modelUrl,
 	);
 
 	// Override poll interval if specified via CLI
@@ -87,6 +92,7 @@ export async function main(): Promise<void> {
 	logger.info("agent ready", {
 		agent: agentName,
 		model,
+		modelUrl,
 		queue: config.queue.dir,
 	});
 

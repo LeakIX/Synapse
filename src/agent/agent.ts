@@ -1,7 +1,11 @@
 import type { QueueTask, TaskResult, TaskQueue } from "../queue/types.ts";
 import type { ForgeClient } from "../forge/types.ts";
 import type { Logger } from "../log/types.ts";
-import type { AgentHarness } from "../harness/types.ts";
+import type {
+	AgentHarness,
+	HarnessModel,
+	HarnessResult,
+} from "../harness/types.ts";
 import { CommandHarness } from "../harness/command.ts";
 import { OpenCodeHarness } from "../harness/opencode.ts";
 import type { AgentConfig } from "../config/types.ts";
@@ -25,6 +29,7 @@ export class Agent {
 	#forge: ForgeClient;
 	#logger: Logger;
 	#model: string;
+	#modelUrl?: string;
 	#pollIntervalMs: number;
 	#running: boolean;
 
@@ -38,6 +43,8 @@ export class Agent {
 		logger: Logger;
 		/** Model identifier, recorded in the result. */
 		model: string;
+		/** URL used to reach the model. */
+		modelUrl?: string;
 		/** How often to poll the queue, in ms. Default 5000. */
 		pollIntervalMs?: number;
 	}) {
@@ -48,6 +55,7 @@ export class Agent {
 		this.#forge = opts.forge;
 		this.#logger = opts.logger;
 		this.#model = opts.model;
+		this.#modelUrl = opts.modelUrl;
 		this.#pollIntervalMs = opts.pollIntervalMs ?? 5000;
 		this.#running = false;
 	}
@@ -67,6 +75,7 @@ export class Agent {
 			agent: this.#name,
 			harness: this.#harness.name,
 			model: this.#model,
+			modelUrl: this.#modelUrl,
 		});
 
 		const interval = setInterval(() => {
@@ -139,12 +148,43 @@ export class Agent {
 			instruction: task.instruction,
 			taskId: task.id,
 		});
+		const models = resolveModels(result, this.#model, this.#modelUrl);
 		return {
 			status: result.status,
-			summary: `${result.summary}\nModel: ${result.model ?? this.#model}`,
+			summary: `${result.summary}\n${formatModelsSummary(models)}`,
 			output: result.output,
 		};
 	}
+}
+
+function resolveModels(
+	result: HarnessResult,
+	defaultModel: string,
+	defaultModelUrl?: string,
+): HarnessModel[] {
+	if (Array.isArray(result.models) && result.models.length > 0) {
+		return result.models;
+	}
+	return [
+		{
+			model: result.model ?? defaultModel,
+			url: result.modelUrl ?? defaultModelUrl,
+		},
+	];
+}
+
+function formatModelsSummary(models: HarnessModel[]): string {
+	if (models.length === 0) {
+		return "Model: unknown/unknown";
+	}
+	const lines: string[] = [];
+	for (const model of models) {
+		lines.push(`Model: ${model.model}`);
+		if (model.url) {
+			lines.push(`Model URL: ${model.url}`);
+		}
+	}
+	return lines.join("\n");
 }
 
 /**
@@ -187,6 +227,7 @@ export function createAgent(
 	},
 	agentName: string,
 	model: string,
+	modelUrl?: string,
 ): { agent: Agent; stop: () => void } {
 	const agentConfig = config.agents.find((a) => a.name === agentName);
 	if (!agentConfig) {
@@ -207,6 +248,7 @@ export function createAgent(
 		forge,
 		logger: config.logger,
 		model,
+		modelUrl,
 	});
 
 	const stop = agent.start();
