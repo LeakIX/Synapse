@@ -43,6 +43,7 @@ describe("E2E: two forges on one webhook server", () => {
 	let queue: MemoryQueue;
 	let source: ForgeWebhookSource;
 	let stopWebhook: () => void;
+	let stopWatching: () => void;
 	const webhookPort = 19974;
 
 	/** Post a comment webhook to one forge path. Returns the status. */
@@ -104,9 +105,11 @@ describe("E2E: two forges on one webhook server", () => {
 		stopWebhook = source.start((event) => {
 			void orch.handleEvent(event);
 		});
+		stopWatching = orch.watchCompletions();
 	});
 
 	afterAll(() => {
+		stopWatching();
 		stopWebhook();
 		gitea.stop();
 		github.stop();
@@ -130,6 +133,44 @@ describe("E2E: two forges on one webhook server", () => {
 			tasks.push(task!);
 		}
 		expect(tasks.map((t) => t.forgeContext?.number).sort()).toEqual([42, 43]);
+	});
+
+	test("each reply lands on the forge the mention came from", async () => {
+		// Gitea first.
+		expect(await mention(source.pathFor("gitea"), 50)).toBe(200);
+		await waitFor(() => queue.pendingCount === 1, { label: "gitea task" });
+		const giteaTask = await queue.claim("code-agent");
+		expect(giteaTask!.forgeContext?.forge).toBe("gitea");
+		await queue.complete(giteaTask!.id, {
+			status: "success",
+			summary: "Fixed it on Gitea",
+		});
+		await waitFor(() => gitea.commentsFor(owner, repo, 50).length === 1, {
+			label: "reply on the Gitea forge",
+		});
+		expect(github.commentsFor(owner, repo, 50)).toHaveLength(0);
+
+		// GitHub next.
+		expect(await mention(source.pathFor("github"), 51)).toBe(200);
+		await waitFor(() => queue.pendingCount === 1, { label: "github task" });
+		const githubTask = await queue.claim("code-agent");
+		expect(githubTask!.forgeContext?.forge).toBe("github");
+		await queue.complete(githubTask!.id, {
+			status: "success",
+			summary: "Fixed it on GitHub",
+		});
+		await waitFor(() => github.commentsFor(owner, repo, 51).length === 1, {
+			label: "reply on the GitHub forge",
+		});
+		expect(gitea.commentsFor(owner, repo, 51)).toHaveLength(0);
+
+		// Each forge saw only its own request.
+		expect(
+			gitea.requests.some((r) => r.path.includes("/issues/51/")),
+		).toBe(false);
+		expect(
+			github.requests.some((r) => r.path.includes("/issues/50/")),
+		).toBe(false);
 	});
 
 	test("an unnamed path is refused when two forges are configured", async () => {
