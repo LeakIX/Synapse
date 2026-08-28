@@ -153,4 +153,62 @@ describe("E2E: Gitea forge round trip", () => {
 		expect(posted.body).toContain("code-agent");
 		expect(posted.body).toContain("The build does not compile");
 	});
+
+	test("the posted comment reads back through the API", async () => {
+		const posted = forge.commentsFor(owner, repo, 42)[0]!;
+		const fetched = await client.getComment(owner, repo, 42, posted.id);
+		expect(fetched.id).toBe(posted.id);
+		expect(fetched.body).toBe(posted.body);
+
+		const all = await client.listComments(owner, repo, 42);
+		expect(all).toHaveLength(1);
+		expect(all[0]!.id).toBe(posted.id);
+	});
+
+	test("a reaction lands on the mentioned comment", async () => {
+		const seeded = forge.seedComment(owner, repo, 44, {
+			author: "human",
+			body: "@code-agent take a look",
+		});
+
+		await client.react(owner, repo, 44, seeded.id, "+1");
+
+		expect(forge.reactionsFor(seeded.id)).toEqual([
+			{ commentId: seeded.id, content: "+1" },
+		]);
+	});
+
+	test("a seeded pull request reads back through the API", async () => {
+		forge.seedPr(owner, repo, {
+			number: 77,
+			title: "Add the fix",
+			headRef: "fix-branch",
+			baseRef: "main",
+			merged: true,
+			createdAt: "2026-01-01T00:00:00Z",
+			mergedAt: "2026-01-02T00:00:00Z",
+		});
+
+		const pr = await client.getPr(owner, repo, 77);
+		expect(pr.number).toBe(77);
+		expect(pr.headRef).toBe("fix-branch");
+		expect(pr.merged).toBe(true);
+		expect(pr.mergedAt).toBe("2026-01-02T00:00:00Z");
+	});
+
+	test("an unknown comment id fails with 404", async () => {
+		await expect(client.getComment(owner, repo, 42, 4242)).rejects.toThrow(
+			/404/,
+		);
+	});
+
+	test("a wrong token fails with 401", async () => {
+		const badClient = new GiteaClient({
+			...forge.forgeConfig(owner, repo),
+			token: "wrong-token",
+		});
+		await expect(badClient.comment(owner, repo, 42, "nope")).rejects.toThrow(
+			/401/,
+		);
+	});
 });
