@@ -1,5 +1,6 @@
 import { describe, expect, test, beforeEach } from "bun:test";
 import { Agent } from "../../src/agent/agent.ts";
+import { CommandHarness } from "../../src/harness/command.ts";
 import { MemoryQueue } from "../../src/queue/memory.ts";
 import type { QueueTask } from "../../src/queue/types.ts";
 import type { ForgeClient, ForgeComment, ForgePr } from "../../src/forge/types.ts";
@@ -97,7 +98,7 @@ describe("Agent", () => {
 		const agent = new Agent({
 			name: "code-agent",
 			emoji: "🔧",
-			command: "echo",
+			harness: new CommandHarness({ command: "echo" }),
 			queue,
 			forge,
 			logger: silentLogger,
@@ -121,7 +122,7 @@ describe("Agent", () => {
 		const agent = new Agent({
 			name: "code-agent",
 			emoji: "🔧",
-			command: "echo",
+			harness: new CommandHarness({ command: "echo" }),
 			queue,
 			forge,
 			logger: silentLogger,
@@ -151,7 +152,7 @@ describe("Agent", () => {
 		const agent = new Agent({
 			name: "code-agent",
 			emoji: "🔧",
-			command: "echo done",
+			harness: new CommandHarness({ command: "echo done" }),
 			queue,
 			forge,
 			logger: silentLogger,
@@ -175,7 +176,7 @@ describe("Agent", () => {
 		const agent = new Agent({
 			name: "code-agent",
 			emoji: "🔧",
-			command: "echo hello",
+			harness: new CommandHarness({ command: "echo hello" }),
 			queue,
 			forge,
 			logger: silentLogger,
@@ -198,7 +199,7 @@ describe("Agent", () => {
 		const agent = new Agent({
 			name: "code-agent",
 			emoji: "🔧",
-			command: "false",
+			harness: new CommandHarness({ command: "false" }),
 			queue,
 			forge,
 			logger: silentLogger,
@@ -219,7 +220,7 @@ describe("Agent", () => {
 		const agent = new Agent({
 			name: "code-agent",
 			emoji: "🔧",
-			command: "echo",
+			harness: new CommandHarness({ command: "echo" }),
 			queue,
 			forge,
 			logger: silentLogger,

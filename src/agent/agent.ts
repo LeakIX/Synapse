@@ -1,6 +1,8 @@
 import type { QueueTask, TaskResult, TaskQueue } from "../queue/types.ts";
 import type { ForgeClient } from "../forge/types.ts";
 import type { Logger } from "../log/types.ts";
+import type { AgentHarness } from "../harness/types.ts";
+import { CommandHarness } from "../harness/command.ts";
 
 /**
  * An AI agent that claims tasks from the queue, executes them,
@@ -9,14 +11,14 @@ import type { Logger } from "../log/types.ts";
  * The agent:
  *  1. Polls the queue for tasks matching its name.
  *  2. Reacts with its emoji on the forge comment when it claims a task.
- *  3. Executes the instruction via its command.
+ *  3. Executes the instruction through its harness.
  *  4. Records the model in the result summary.
  *  5. Marks the task as complete or failed.
  */
 export class Agent {
 	#name: string;
 	#emoji: string;
-	#command: string;
+	#harness: AgentHarness;
 	#queue: TaskQueue;
 	#forge: ForgeClient;
 	#logger: Logger;
@@ -27,8 +29,8 @@ export class Agent {
 	constructor(opts: {
 		name: string;
 		emoji: string;
-		/** Shell command to execute for each task. */
-		command: string;
+		/** The system that performs the work. */
+		harness: AgentHarness;
 		queue: TaskQueue;
 		forge: ForgeClient;
 		logger: Logger;
@@ -39,7 +41,7 @@ export class Agent {
 	}) {
 		this.#name = opts.name;
 		this.#emoji = opts.emoji;
-		this.#command = opts.command;
+		this.#harness = opts.harness;
 		this.#queue = opts.queue;
 		this.#forge = opts.forge;
 		this.#logger = opts.logger;
@@ -61,6 +63,7 @@ export class Agent {
 		this.#running = true;
 		this.#logger.info("agent started", {
 			agent: this.#name,
+			harness: this.#harness.name,
 			model: this.#model,
 		});
 
@@ -130,48 +133,15 @@ export class Agent {
 	}
 
 	async #execute(task: QueueTask): Promise<TaskResult> {
-		const { exec } = await import("node:child_process");
-		const { promisify } = await import("node:util");
-		const pExec = promisify(exec);
-
-		try {
-			const { stdout, stderr } = await pExec(
-				`${this.#command} ${JSON.stringify(task.instruction)}`,
-				{
-					timeout: 300_000,
-					maxBuffer: 10 * 1024 * 1024,
-					encoding: "utf-8",
-				},
-			);
-
-			const output = [stdout, stderr].filter(Boolean).join("\n");
-			const summary = this.#makeSummary(output, true);
-			return {
-				status: "success",
-				summary,
-				output: output || undefined,
-			};
-		} catch (err) {
-			const errStr = String(err);
-			const summary = this.#makeSummary(errStr, false);
-			return {
-				status: "failure",
-				summary,
-				output: errStr,
-			};
-		}
-	}
-
-	/**
-	 * Build the result summary. The last line is always the model
-	 * that performed the work, per the agent protocol.
-	 */
-	#makeSummary(output: string, success: boolean): string {
-		const lines = output.trim().split("\n").filter(Boolean);
-		const lastLine = lines.length > 0 ? lines[lines.length - 1] : "";
-		const prefix = success ? "done" : "failed";
-		const detail = lastLine.slice(0, 200);
-		return `${prefix}: ${detail}\nModel: ${this.#model}`;
+		const result = await this.#harness.run({
+			instruction: task.instruction,
+			taskId: task.id,
+		});
+		return {
+			status: result.status,
+			summary: `${result.summary}\nModel: ${result.model ?? this.#model}`,
+			output: result.output,
+		};
 	}
 }
 
@@ -198,6 +168,7 @@ export function createAgent(
 			`agent ${agentName} has no command configured; cannot run`,
 		);
 	}
+	const harness = new CommandHarness({ command: agentConfig.command });
 
 	const forge = config.forges[0]?.client;
 	if (!forge) {
@@ -207,7 +178,7 @@ export function createAgent(
 	const agent = new Agent({
 		name: agentConfig.name,
 		emoji: agentConfig.emoji,
-		command: agentConfig.command,
+		harness,
 		queue: config.queue,
 		forge,
 		logger: config.logger,
