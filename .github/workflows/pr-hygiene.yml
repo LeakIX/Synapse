@@ -1,0 +1,59 @@
+name: PR hygiene
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  # Ref of dannywillems/toolbox the checks come from.
+  # Set it to a commit SHA to pin the scripts.
+  TOOLBOX_REF: main
+
+jobs:
+  pr-hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The checks compare the branch against the base commit,
+          # so they need the full history.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download the checks
+        run: |
+          set -euo pipefail
+          base_url="https://raw.githubusercontent.com/dannywillems/toolbox"
+          for check in \
+            check-pr-size \
+            check-title-length \
+            check-no-fixup \
+            check-commit-body
+          do
+            curl -sSLf -o "$check.sh" \
+              "$base_url/$TOOLBOX_REF/pr-hygiene/$check.sh"
+            chmod +x "$check.sh"
+          done
+
+      - name: Check PR size
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: ./check-pr-size.sh "$BASE_SHA"
+
+      - name: Check commit title length
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: ./check-title-length.sh "$BASE_SHA"
+
+      - name: Check for fixup commits
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: ./check-no-fixup.sh "$BASE_SHA"
+
+      - name: Check commit bodies
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: ./check-commit-body.sh "$BASE_SHA"
