@@ -86,6 +86,12 @@ export interface WebhookConfig {
 	secret: string;
 }
 
+/** Housekeeping loop configuration. */
+export interface HousekeepingConfig {
+	/** Time between housekeeping ticks, in milliseconds. */
+	intervalMs: number;
+}
+
 /** Event parser configuration. */
 export interface ParserConfig {
 	/** Which parser implementation to use. */
@@ -110,6 +116,7 @@ export interface OrchestratorConfig {
 	queue: QueueConfig;
 	agents: AgentConfig[];
 	webhook: WebhookConfig;
+	housekeeping: HousekeepingConfig;
 	parser: ParserConfig;
 	log: LogConfig;
 }

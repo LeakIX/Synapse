@@ -336,6 +336,7 @@ export async function runSetup(configPath: string = "config.yaml"): Promise<Orch
 		queue: { type: "file" satisfies QueueType, dir: queueDir },
 		agents,
 		webhook: { port: webhookPort, secret: webhookSecret },
+		housekeeping: { intervalMs: 60000 },
 		parser: { type: parserType as ParserType },
 		log: {
 			level: logLevel as LogLevel,

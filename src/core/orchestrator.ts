@@ -115,6 +115,75 @@ export class Orchestrator {
 	}
 
 	/**
+	 * Ask the CI gate about every held task and release the ready ones.
+	 *
+	 * The gate holds a follow-up task while the pull request it waits on
+	 * is not green. Nothing else asks the gate a second time, so this
+	 * method is the only way a held task ever runs. It returns the tasks
+	 * it released, for the tests.
+	 */
+	async retryHeldTasks(): Promise<QueueTask[]> {
+		if (!this.#ciGate) return [];
+
+		const held = await this.#queue.listHeld();
+		const released: QueueTask[] = [];
+
+		for (const task of held) {
+			const ready = await this.#ciGate.isReady(task);
+			if (!ready) continue;
+
+			const task2 = await this.#queue.release(task.id);
+			if (!task2) continue;
+
+			try {
+				await this.#tracker.update(task.issueId, {
+					status: "open" satisfies IssueStatus,
+				});
+			} catch (err) {
+				this.#logger.error("failed to unblock issue", {
+					issueId: task.issueId,
+					error: String(err),
+				});
+			}
+
+			this.#logger.info("held task released", {
+				taskId: task2.id,
+				issueId: task2.issueId,
+				followUpAfter: task2.followUpAfter,
+			});
+			released.push(task2);
+		}
+
+		return released;
+	}
+
+	/**
+	 * Start the housekeeping loop and return a stop function.
+	 *
+	 * The loop retries the tasks the CI gate holds. Call it once, next
+	 * to watchCompletions.
+	 *
+	 * @param opts intervalMs: time between ticks. Default 60000.
+	 */
+	startHousekeeping(opts?: { intervalMs?: number }): () => void {
+		const intervalMs = opts?.intervalMs ?? 60_000;
+		const timer = setInterval(() => {
+			void this.#housekeepingTick();
+		}, intervalMs);
+		return () => clearInterval(timer);
+	}
+
+	async #housekeepingTick(): Promise<void> {
+		try {
+			await this.retryHeldTasks();
+		} catch (err) {
+			this.#logger.error("housekeeping tick failed", {
+				error: String(err),
+			});
+		}
+	}
+
+	/**
 	 * Pick the forge client the task must answer on.
 	 *
 	 * A task carries the name of the forge its event came from. An older
@@ -196,6 +265,9 @@ export class Orchestrator {
 		if (this.#ciGate && inst.followUpAfter !== undefined) {
 			const ready = await this.#ciGate.isReady(task);
 			if (!ready) {
+				// The queue holds the task, so the housekeeping tick can
+				// ask the gate again and a restart does not lose it.
+				await this.#queue.hold(task);
 				this.#logger.info("task held by CI gate", {
 					taskId: task.id,
 					followUpAfter: inst.followUpAfter,
@@ -203,7 +275,7 @@ export class Orchestrator {
 				await this.#tracker.update(issue.id, {
 					status: "blocked" satisfies IssueStatus,
 				});
-				return { ...task, claimedAt: undefined };
+				return task;
 			}
 		}
 
