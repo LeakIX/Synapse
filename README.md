@@ -57,7 +57,8 @@ Forge Webhook          Beads Watch
 ```
 
 1. Human comments on a forge issue/PR: `@code-agent fix the failing test`
-2. `ForgeWebhookSource` receives the webhook, normalizes to `Event`
+2. `ForgeWebhookSource` receives the webhook on `/webhook/<forge-name>`
+   and normalizes it to an `Event` that carries the forge name
 3. `MentionParser` extracts the agent name, instruction, urgency, follow-up PR
 4. `Orchestrator` creates a beads issue, publishes a task to the queue
 5. Agent claims the task, does the work, completes it
@@ -110,6 +111,7 @@ agents:
     emoji: "🔧"
 
 webhook:
+  # Point each forge at /webhook/<forge-name>.
   port: 8080
   secret: ${WEBHOOK_SECRET:-}
 

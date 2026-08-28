@@ -46,6 +46,9 @@ agents:
     emoji: "🧪"
 
 webhook:
+  # One server serves every forge above. Point each forge's webhook at
+  # http://<host>:<port>/webhook/<forge-name>, so "primary" posts to
+  # /webhook/primary. With a single forge, any path works.
   port: 8080
   secret: ${WEBHOOK_SECRET:-}
 

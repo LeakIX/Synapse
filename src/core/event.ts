@@ -15,6 +15,8 @@ export interface Event {
 	id: string;
 	/** Name of the EventSource that produced this event. */
 	source: string;
+	/** Name of the forge the event came from, when a forge sent it. */
+	forge?: string;
 	/** Discriminator for the payload. */
 	kind: EventKind;
 	/** Type-specific data. */

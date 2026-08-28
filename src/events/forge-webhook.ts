@@ -11,30 +11,63 @@ import type { EventSource } from "../events/types.ts";
 import type { WebhookConfig, ForgeConfig } from "../config/types.ts";
 
 /**
- * EventSource that receives forge webhooks via an HTTP server.
+ * EventSource that receives forge webhooks over one HTTP server.
  *
- * Handles Gitea and GitHub webhook payloads, normalizing them
- * into canonical Event objects.
+ * One server serves every configured forge, because a production run
+ * exposes one port through one tunnel. The path names the forge:
+ *
+ *   POST /webhook/<forge-name>
+ *
+ * A request to any other path reaches the only configured forge, so a
+ * setup with a single forge keeps working with a plain "/" hook URL.
+ * With two or more forges, an unnamed path is a 404: the source cannot
+ * guess which forge sent the payload, and guessing would send the reply
+ * to the wrong forge.
+ *
+ * The event carries the forge name, so the orchestrator answers on the
+ * forge the event came from.
  */
 export class ForgeWebhookSource implements EventSource {
 	readonly name = "forge-webhook";
 	#port: number;
 	#secret: string;
+	#forges: ForgeConfig[];
 	#server: ReturnType<typeof Bun.serve> | null = null;
 
-	constructor(_forgeConfig: ForgeConfig, webhookConfig: WebhookConfig) {
+	constructor(forges: ForgeConfig[], webhookConfig: WebhookConfig) {
+		if (forges.length === 0) {
+			throw new Error("forge webhook source: at least one forge is required");
+		}
+		this.#forges = forges;
 		this.#port = webhookConfig.port;
 		this.#secret = webhookConfig.secret;
 	}
 
+	/** Path the forge must post to. */
+	pathFor(forgeName: string): string {
+		return `/webhook/${forgeName}`;
+	}
+
 	start(onEvent: (event: Event) => void): () => void {
 		const secret = this.#secret;
+		const forges = this.#forges;
 
 		this.#server = Bun.serve({
 			port: this.#port,
 			async fetch(req: Request) {
 				if (req.method !== "POST") {
 					return new Response("Not Found", { status: 404 });
+				}
+
+				const path = new URL(req.url).pathname;
+				const named = path.match(/^\/webhook\/([^/]+)$/);
+				const forge = named
+					? forges.find((f) => f.name === named[1])
+					: forges.length === 1
+						? forges[0]
+						: undefined;
+				if (!forge) {
+					return new Response("Unknown forge", { status: 404 });
 				}
 
 				const body = await req.text();
@@ -59,7 +92,7 @@ export class ForgeWebhookSource implements EventSource {
 					return new Response("Invalid JSON", { status: 400 });
 				}
 
-				const event = parseWebhookPayload(payload);
+				const event = parseWebhookPayload(payload, forge.name);
 				if (event) {
 					onEvent(event);
 				}
@@ -80,6 +113,7 @@ export class ForgeWebhookSource implements EventSource {
  */
 export function parseWebhookPayload(
 	payload: Record<string, unknown>,
+	forge?: string,
 ): Event | null {
 	const action = String(payload.action ?? "");
 	// Gitea and GitHub both name the repository "repository". Keep "repo"
@@ -99,6 +133,7 @@ export function parseWebhookPayload(
 	const base = {
 		id: randomUUID(),
 		source: "forge-webhook",
+		forge,
 		receivedAt: new Date().toISOString(),
 	};
 

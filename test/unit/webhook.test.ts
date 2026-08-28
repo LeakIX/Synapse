@@ -16,8 +16,74 @@ const forgeConfig: ForgeConfig = {
 // Since the source uses Bun.serve, we test via HTTP.
 
 describe("ForgeWebhookSource", () => {
+	test("routes by path to the named forge", async () => {
+		const gitea = { ...forgeConfig, name: "gitea" };
+		const github = { ...forgeConfig, name: "github", type: "github" as const };
+		const source = new ForgeWebhookSource([gitea, github], {
+			port: 19998,
+			secret: "",
+		});
+
+		const events: Event[] = [];
+		const stop = source.start((e) => events.push(e));
+
+		const payload = {
+			action: "created",
+			repository: { name: "repo", owner: { login: "org" } },
+			issue: { number: 1, user: { login: "human" } },
+			comment: { id: 2, body: "hello", user: { login: "human" } },
+		};
+		const post = (path: string) =>
+			fetch(`http://localhost:19998${path}`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(payload),
+			});
+
+		expect((await post(source.pathFor("gitea"))).status).toBe(200);
+		expect((await post(source.pathFor("github"))).status).toBe(200);
+		// Two forges and no name in the path: the source cannot guess.
+		expect((await post("/")).status).toBe(404);
+		expect((await post("/webhook/nope")).status).toBe(404);
+
+		await new Promise((r) => setTimeout(r, 100));
+		stop();
+
+		expect(events).toHaveLength(2);
+		expect(events[0].forge).toBe("gitea");
+		expect(events[1].forge).toBe("github");
+	});
+
+	test("one forge answers on any path", async () => {
+		const source = new ForgeWebhookSource([forgeConfig], {
+			port: 19999,
+			secret: "",
+		});
+
+		const events: Event[] = [];
+		const stop = source.start((e) => events.push(e));
+
+		const res = await fetch("http://localhost:19999/", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				action: "created",
+				repository: { name: "repo", owner: { login: "org" } },
+				issue: { number: 1, user: { login: "human" } },
+				comment: { id: 2, body: "hello", user: { login: "human" } },
+			}),
+		});
+		expect(res.status).toBe(200);
+
+		await new Promise((r) => setTimeout(r, 100));
+		stop();
+
+		expect(events).toHaveLength(1);
+		expect(events[0].forge).toBe("test");
+	});
+
 	test("parses a Gitea issue_comment webhook with the repository key", async () => {
-		const source = new ForgeWebhookSource(forgeConfig, {
+		const source = new ForgeWebhookSource([forgeConfig], {
 			port: 19996,
 			secret: "",
 		});
@@ -66,7 +132,7 @@ describe("ForgeWebhookSource", () => {
 	});
 
 	test("parses a GitHub issue_comment webhook with the repository key", async () => {
-		const source = new ForgeWebhookSource(forgeConfig, {
+		const source = new ForgeWebhookSource([forgeConfig], {
 			port: 19997,
 			secret: "",
 		});
@@ -115,7 +181,7 @@ describe("ForgeWebhookSource", () => {
 	});
 
 	test("parses a Gitea issue_comment webhook", async () => {
-		const source = new ForgeWebhookSource(forgeConfig, {
+		const source = new ForgeWebhookSource([forgeConfig], {
 			port: 19993,
 			secret: "",
 		});
@@ -164,7 +230,7 @@ describe("ForgeWebhookSource", () => {
 	});
 
 	test("parses a GitHub pull_request webhook (opened)", async () => {
-		const source = new ForgeWebhookSource(forgeConfig, {
+		const source = new ForgeWebhookSource([forgeConfig], {
 			port: 19994,
 			secret: "",
 		});
@@ -205,7 +271,7 @@ describe("ForgeWebhookSource", () => {
 	});
 
 	test("parses a GitHub pull_request webhook (merged)", async () => {
-		const source = new ForgeWebhookSource(forgeConfig, {
+		const source = new ForgeWebhookSource([forgeConfig], {
 			port: 19995,
 			secret: "",
 		});
@@ -244,7 +310,7 @@ describe("ForgeWebhookSource", () => {
 	});
 
 	test("parses a GitHub pull_request webhook (closed, not merged)", async () => {
-		const source = new ForgeWebhookSource(forgeConfig, {
+		const source = new ForgeWebhookSource([forgeConfig], {
 			port: 19995,
 			secret: "",
 		});
@@ -283,7 +349,7 @@ describe("ForgeWebhookSource", () => {
 	});
 
 	test("rejects requests with invalid signature", async () => {
-		const source = new ForgeWebhookSource(forgeConfig, {
+		const source = new ForgeWebhookSource([forgeConfig], {
 			port: 19996,
 			secret: "my-secret",
 		});
@@ -303,7 +369,7 @@ describe("ForgeWebhookSource", () => {
 	});
 
 	test("rejects non-POST requests", async () => {
-		const source = new ForgeWebhookSource(forgeConfig, {
+		const source = new ForgeWebhookSource([forgeConfig], {
 			port: 19997,
 			secret: "",
 		});
@@ -317,7 +383,7 @@ describe("ForgeWebhookSource", () => {
 	});
 
 	test("returns 400 for invalid JSON", async () => {
-		const source = new ForgeWebhookSource(forgeConfig, {
+		const source = new ForgeWebhookSource([forgeConfig], {
 			port: 19998,
 			secret: "",
 		});
@@ -333,7 +399,7 @@ describe("ForgeWebhookSource", () => {
 	});
 
 	test("ignores unrecognized webhook types", async () => {
-		const source = new ForgeWebhookSource(forgeConfig, {
+		const source = new ForgeWebhookSource([forgeConfig], {
 			port: 19999,
 			secret: "",
 		});
