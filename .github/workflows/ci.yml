@@ -34,6 +34,12 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
 
+      - name: Typecheck the viewer frontend
+        run: bun run viewer:check
+
+      - name: Build the viewer frontend
+        run: bun run viewer:build
+
       - name: Unit tests
         run: bun test test/unit/
 

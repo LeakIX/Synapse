@@ -143,18 +143,34 @@ bun run typecheck     # tsc --noEmit
 
 Web interface showing the dependency graph with agent assignments and queue state.
 
+The frontend is a SvelteKit application. It uses Svelte 5 runes, TypeScript, Tailwind v4 and the LeakIX brand tokens. It builds to static files with `adapter-static`, and the Bun server hands them out.
+
 ```bash
+# Build the frontend once
+bun run viewer:build
+
+# Run the viewer
 bun run src/viewer/server.ts --port 8090 --dir /path/to/repo
 ```
 
 Open http://localhost:8090
+
+The server sends the built frontend when `src/viewer/web/build` exists. It falls back to the single file page in `src/viewer/index.html` when it does not, so the viewer runs before you build.
+
+To work on the frontend, run the viewer on port 8090 and start the Vite dev server. Vite proxies `/api` to the viewer, so you develop against real data.
+
+```bash
+bun run viewer:dev     # Vite dev server with hot reload
+bun run viewer:check   # svelte-check type checking
+```
 
 The viewer shows:
 - Force-directed dependency graph from `bd list --json`
 - Agent color-coding (which agent works on what)
 - Queue state overlay (pending/active/done/failed)
 - Filter by status, agent, or search
-- Click a node for details, double-click to open the panel
+- Click a node to select it, press Enter or double-click to open the panel
+- Explicit loading, empty and error states
 
 ## Project Structure
 
@@ -196,8 +212,12 @@ src/
     types.ts        # Logger interface
     stdout.ts       # StdoutLogger (text + JSON)
   viewer/
-    index.html      # Web UI (force-directed graph)
+    index.html      # Fallback single file page
     server.ts       # Viewer HTTP server
+    web/            # SvelteKit frontend (Svelte 5 + Tailwind v4)
+      src/app.css   # Tailwind entry and the LeakIX @theme tokens
+      src/lib/      # Domain modules and components
+      src/routes/   # The viewer page
 test/
   unit/             # 12 test files
   integration/      # 2 test files
