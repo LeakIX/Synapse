@@ -22,6 +22,11 @@ jobs:
           # so they need the full history.
           fetch-depth: 0
           persist-credentials: false
+          # Check out the head of the pull request, not the merge ref
+          # GitHub builds by default. The merge ref of a stacked pull
+          # request carries every ancestor branch, so the checks would
+          # measure the whole stack instead of this one change.
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Download the checks
         run: |
