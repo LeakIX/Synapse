@@ -10,6 +10,7 @@ type FailedCallback = (task: QueueTask) => void;
 export class MemoryQueue implements TaskQueue {
 	#pending = new Map<string, QueueTask>();
 	#active = new Map<string, QueueTask>();
+	#held = new Map<string, QueueTask>();
 	#done: QueueTask[] = [];
 	#failed: QueueTask[] = [];
 	#doneCbs: DoneCallback[] = [];
@@ -37,6 +38,27 @@ export class MemoryQueue implements TaskQueue {
 
 	async archive(_taskId: string): Promise<void> {
 		// no-op in memory
+	}
+
+	async hold(task: QueueTask): Promise<void> {
+		this.#held.set(task.id, task);
+	}
+
+	async listHeld(): Promise<QueueTask[]> {
+		return [...this.#held.values()];
+	}
+
+	async release(taskId: string): Promise<QueueTask | null> {
+		const task = this.#held.get(taskId);
+		if (!task) return null;
+		this.#held.delete(taskId);
+		this.#pending.set(taskId, task);
+		return task;
+	}
+
+	/** Test helper: get held task count. */
+	get heldCount(): number {
+		return this.#held.size;
 	}
 
 	async claim(agentName: string): Promise<QueueTask | null> {

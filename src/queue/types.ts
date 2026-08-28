@@ -67,6 +67,19 @@ export interface TaskQueue {
 	/** Move a processed task to the archive. */
 	archive(taskId: string): Promise<void>;
 
+	/**
+	 * Park a task that cannot run yet, so no agent claims it. A held
+	 * task survives a restart, the way a pending task does.
+	 */
+	hold(task: QueueTask): Promise<void>;
+	/** Every task that waits on a gate. */
+	listHeld(): Promise<QueueTask[]>;
+	/**
+	 * Move a held task into pending, so an agent can claim it. Returns
+	 * the task, or null when it is no longer held.
+	 */
+	release(taskId: string): Promise<QueueTask | null>;
+
 	/** Agent side: atomically claim the next task for this agent. Null if none. */
 	claim(agentName: string): Promise<QueueTask | null>;
 	/** Agent side: mark a task as successfully completed. */
