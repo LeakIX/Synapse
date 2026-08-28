@@ -16,6 +16,104 @@ const forgeConfig: ForgeConfig = {
 // Since the source uses Bun.serve, we test via HTTP.
 
 describe("ForgeWebhookSource", () => {
+	test("parses a Gitea issue_comment webhook with the repository key", async () => {
+		const source = new ForgeWebhookSource(forgeConfig, {
+			port: 19996,
+			secret: "",
+		});
+
+		const events: Event[] = [];
+		const stop = source.start((e) => events.push(e));
+
+		// The shape Gitea sends: a "repository" key, and an owner that
+		// carries "username" and "login" but no "name".
+		const payload = {
+			action: "created",
+			repository: {
+				name: "repo",
+				full_name: "org/repo",
+				owner: { login: "org", username: "org" },
+			},
+			issue: {
+				number: 7,
+				title: "Test issue",
+				html_url: "https://git.example.com/org/repo/issues/7",
+				user: { login: "human" },
+			},
+			comment: {
+				id: 21,
+				body: "@code-agent fix it",
+				html_url: "https://git.example.com/org/repo/issues/7#issuecomment-21",
+				user: { login: "human" },
+			},
+		};
+
+		await fetch("http://localhost:19996/", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(payload),
+		});
+
+		await new Promise((r) => setTimeout(r, 100));
+		stop();
+
+		expect(events).toHaveLength(1);
+		const cp = events[0].payload as CommentPayload;
+		expect(cp.owner).toBe("org");
+		expect(cp.repo).toBe("repo");
+		expect(cp.number).toBe(7);
+		expect(cp.body).toBe("@code-agent fix it");
+	});
+
+	test("parses a GitHub issue_comment webhook with the repository key", async () => {
+		const source = new ForgeWebhookSource(forgeConfig, {
+			port: 19997,
+			secret: "",
+		});
+
+		const events: Event[] = [];
+		const stop = source.start((e) => events.push(e));
+
+		// The shape GitHub sends: a "repository" key, and an owner that
+		// carries "login" only.
+		const payload = {
+			action: "created",
+			repository: {
+				name: "repo",
+				full_name: "org/repo",
+				owner: { login: "org" },
+			},
+			issue: {
+				number: 9,
+				title: "Test issue",
+				html_url: "https://github.com/org/repo/issues/9",
+				user: { login: "human" },
+			},
+			comment: {
+				id: 33,
+				body: "@code-agent fix it",
+				html_url: "https://github.com/org/repo/issues/9#issuecomment-33",
+				user: { login: "human" },
+			},
+		};
+
+		await fetch("http://localhost:19997/", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(payload),
+		});
+
+		await new Promise((r) => setTimeout(r, 100));
+		stop();
+
+		expect(events).toHaveLength(1);
+		const cp = events[0].payload as CommentPayload;
+		expect(cp.owner).toBe("org");
+		expect(cp.repo).toBe("repo");
+		expect(cp.number).toBe(9);
+		expect(cp.author).toBe("human");
+	});
+
 	test("parses a Gitea issue_comment webhook", async () => {
 		const source = new ForgeWebhookSource(forgeConfig, {
 			port: 19993,
