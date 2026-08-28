@@ -172,6 +172,9 @@ function resolveModels(
 }
 
 function formatModelsSummary(models: HarnessModel[]): string {
+	if (models.length === 0) {
+		return "Model: unknown/unknown";
+	}
 	const lines: string[] = [];
 	for (const model of models) {
 		lines.push(`Model: ${model.model}`);

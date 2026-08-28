@@ -11,7 +11,7 @@ export interface HarnessTask {
 	taskId: string;
 }
 
-/** What the harness reports back. */
+/** A single model entry reported by a harness. */
 export interface HarnessModel {
 	/** Model that did the work, as "provider/model-id". */
 	model: string;
