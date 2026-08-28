@@ -1,4 +1,5 @@
 import type { GiteaApiVersion } from "../forge/gitea.ts";
+import type { HarnessType } from "../harness/types.ts";
 import type { LogLevel, LogFormat } from "../log/types.ts";
 
 /** Which forge implementation to use. */
@@ -67,8 +68,14 @@ export interface AgentConfig {
 	name: string;
 	/** Emoji the agent reacts with when claiming a task. */
 	emoji: string;
-	/** Command to invoke the agent (for future dispatch). */
+	/** Which harness performs the work. Default "opencode". */
+	harness?: HarnessType;
+	/** Command to run, when the harness is "command". */
 	command?: string;
+	/** Model the harness uses, as "provider/model-id". */
+	model?: string;
+	/** Directory the harness works in. */
+	dir?: string;
 }
 
 /** Webhook receiver configuration. */

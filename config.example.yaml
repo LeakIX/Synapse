@@ -40,10 +40,18 @@ queue:
   dir: ./queue
 
 agents:
+  # harness picks what performs the work. The default is opencode.
+  #   opencode: runs `opencode run <instruction> --format json`
+  #   command:  runs a shell command with the instruction as one argument
   - name: code-agent
     emoji: "🔧"
+    harness: opencode
+    model: anthropic/claude-opus-5
+    dir: /path/to/repo
   - name: test-agent
     emoji: "🧪"
+    harness: command
+    command: ./scripts/run-tests.sh
 
 webhook:
   # One server serves every forge above. Point each forge's webhook at
