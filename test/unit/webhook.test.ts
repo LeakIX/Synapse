@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { ForgeWebhookSource } from "../../src/events/forge-webhook.ts";
+import {
+	ForgeWebhookSource,
+	digestsMatch,
+} from "../../src/events/forge-webhook.ts";
 import type { ForgeConfig } from "../../src/config/types.ts";
 import type { Event, CommentPayload, PrPayload } from "../../src/core/event.ts";
 
@@ -419,5 +422,31 @@ describe("ForgeWebhookSource", () => {
 		await new Promise((r) => setTimeout(r, 100));
 		expect(events).toHaveLength(0);
 		stop();
+	});
+});
+describe("digestsMatch", () => {
+	const digest = "a".repeat(64);
+
+	test("two equal digests match", () => {
+		expect(digestsMatch(digest, digest)).toBe(true);
+	});
+
+	test("a digest that differs in one byte does not match", () => {
+		expect(digestsMatch(`b${digest.slice(1)}`, digest)).toBe(false);
+	});
+
+	test("a digest that differs in the last byte does not match", () => {
+		expect(digestsMatch(`${digest.slice(0, 63)}b`, digest)).toBe(false);
+	});
+
+	test("a shorter digest does not match, and does not throw", () => {
+		// timingSafeEqual throws on buffers of different length, so the
+		// length check must come first.
+		expect(digestsMatch("abc", digest)).toBe(false);
+		expect(digestsMatch("", digest)).toBe(false);
+	});
+
+	test("a longer digest does not match", () => {
+		expect(digestsMatch(`${digest}00`, digest)).toBe(false);
 	});
 });

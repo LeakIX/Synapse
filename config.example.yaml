@@ -54,6 +54,8 @@ agents:
     command: ./scripts/run-tests.sh
 
 webhook:
+  # SET THE SECRET before the port faces the internet. An empty secret
+  # accepts every payload unverified, and a payload starts an agent.
   # One server serves every forge above. Point each forge's webhook at
   # http://<host>:<port>/webhook/<forge-name>, so "primary" posts to
   # /webhook/primary. With a single forge, any path works.
