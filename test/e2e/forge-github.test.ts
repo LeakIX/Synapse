@@ -95,7 +95,7 @@ describe("E2E: GitHub forge round trip", () => {
 			agents,
 		});
 
-		const source = new ForgeWebhookSource(forge.forgeConfig(owner, repo), {
+		const source = new ForgeWebhookSource([forge.forgeConfig(owner, repo)], {
 			port: webhookPort,
 			secret: "",
 		});

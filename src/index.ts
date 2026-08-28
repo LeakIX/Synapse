@@ -73,11 +73,11 @@ export function createOrchestrator(
 	// Event parser
 	const parser: EventParser = new MentionParser(config.agents);
 
-	// Event sources: one webhook source per forge + beads watch
-	const sources: EventSource[] = config.forges.map(
-		(f) => new ForgeWebhookSource(f, config.webhook),
-	);
-	sources.push(new BeadsWatchSource(config.beads));
+	// Event sources: one webhook server for every forge + beads watch
+	const sources: EventSource[] = [
+		new ForgeWebhookSource(config.forges, config.webhook),
+		new BeadsWatchSource(config.beads),
+	];
 
 	// Orchestrator
 	const orchestrator = new Orchestrator({

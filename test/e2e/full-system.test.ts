@@ -50,14 +50,16 @@ describe("E2E: full system", () => {
 		});
 
 		webhookSource = new ForgeWebhookSource(
-			{
-				name: "test",
-				type: "gitea",
-				url: "https://git.example.com",
-				token: "token",
-				owner: "org",
-				repo: "repo",
-			},
+			[
+				{
+					name: "test",
+					type: "gitea",
+					url: "https://git.example.com",
+					token: "token",
+					owner: "org",
+					repo: "repo",
+				},
+			],
 			{ port: webhookPort, secret: "" },
 		);
 
