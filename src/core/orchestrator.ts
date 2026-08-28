@@ -14,7 +14,7 @@ import { randomUUID } from "node:crypto";
  * Depends only on interfaces:
  *   - IssueTracker: create/update/close beads issues
  *   - TaskQueue: publish tasks, watch for completion
- *   - ForgeClient: comment back on the forge (one per named forge)
+ *   - ForgeClient: comment back on the forge the event came from
  *   - EventParser: extract instructions from events
  *   - Logger: log activity
  *   - AgentConfig[]: agent definitions
@@ -30,6 +30,7 @@ import { randomUUID } from "node:crypto";
 export class Orchestrator {
 	#tracker: IssueTracker;
 	#queue: TaskQueue;
+	#forges: Map<string, ForgeClient>;
 	#defaultForge: ForgeClient;
 	#parser: EventParser;
 	#logger: Logger;
@@ -49,6 +50,7 @@ export class Orchestrator {
 	}) {
 		this.#tracker = deps.tracker;
 		this.#queue = deps.queue;
+		this.#forges = new Map(deps.forges.map((f) => [f.name, f.client]));
 		this.#defaultForge = deps.forges[0]?.client;
 		if (!this.#defaultForge) {
 			throw new Error("orchestrator: at least one forge is required");
@@ -112,6 +114,25 @@ export class Orchestrator {
 		};
 	}
 
+	/**
+	 * Pick the forge client the task must answer on.
+	 *
+	 * A task carries the name of the forge its event came from. An older
+	 * task, or a task from a source that names no forge, falls back to
+	 * the first configured forge.
+	 */
+	#forgeFor(task: QueueTask): ForgeClient {
+		const name = task.forgeContext?.forge;
+		if (!name) return this.#defaultForge;
+		const forge = this.#forges.get(name);
+		if (forge) return forge;
+		this.#logger.warn("unknown forge on task, using the default", {
+			taskId: task.id,
+			forge: name,
+		});
+		return this.#defaultForge;
+	}
+
 	/** Check if the event was authored by one of our agents. */
 	#isSelfWrite(event: Event): boolean {
 		if (event.kind === "comment") {
@@ -152,6 +173,7 @@ export class Orchestrator {
 				url: string;
 			};
 			forgeContext = {
+				forge: event.forge,
 				owner: cp.owner,
 				repo: cp.repo,
 				number: cp.number,
@@ -213,7 +235,7 @@ export class Orchestrator {
 		}
 
 		if (task.forgeContext) {
-			const forge = this.#defaultForge;
+			const forge = this.#forgeFor(task);
 			const agent = this.#agents.get(task.agent);
 			const emoji = agent?.emoji ?? "✅";
 			const body = `${emoji} **${task.agent}** completed: ${task.result?.summary ?? "done"}`;
@@ -258,7 +280,7 @@ export class Orchestrator {
 		}
 
 		if (task.forgeContext) {
-			const forge = this.#defaultForge;
+			const forge = this.#forgeFor(task);
 			const body = `⚠️ **${task.agent}** failed: ${task.result?.summary ?? "unknown error"}`;
 			try {
 				await forge.comment(

@@ -1,5 +1,7 @@
 /** Context for reporting back to the forge. */
 export interface ForgeContext {
+	/** Name of the forge the event came from, as configured. */
+	forge?: string;
 	owner: string;
 	repo: string;
 	/** Issue or PR number to comment on. */
