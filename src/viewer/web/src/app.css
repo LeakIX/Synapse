@@ -1,0 +1,67 @@
+@import 'tailwindcss';
+
+/*
+ * The LeakIX brand system: gold on navy, dark first, JetBrains Mono.
+ * Every colour lives here. A component consumes a semantic token
+ * (bg-card, text-muted, fill-node-open) and never a raw value.
+ *
+ * The gold contrast rule: gold reads as a fill with dark text on top, or
+ * as text on navy. A gold fill therefore carries `text-on-primary`, never
+ * white text.
+ */
+@theme {
+  /* Brand */
+  --color-primary: #fab741;
+  --color-primary-hover: #e09b2a;
+  --color-primary-light: #2a2109;
+  --color-on-primary: #181f27;
+  --color-accent: #ff8c00;
+  --color-accent-hover: #d97706;
+
+  /* Surfaces */
+  --color-bg: #181f27;
+  --color-bg-deep: #090e15;
+  --color-card: #1f2731;
+  --color-border: #2a3138;
+
+  /* Type */
+  --color-text: #ffffff;
+  --color-muted: #94a3b8;
+
+  /* Feedback */
+  --color-focus: #ff8c00;
+  --color-danger: #dc3545;
+  --color-success: #28a745;
+  --color-warning: #f9b640;
+
+  /* Agent identity. The graph colours a node by the agent that owns it. */
+  --color-agent-code: #bc8cff;
+  --color-agent-test: #f2cc60;
+  --color-agent-review: #7ee787;
+  --color-agent-docs: #ff7b72;
+  --color-agent-other: #94a3b8;
+
+  /* Node identity. The graph colours a node by issue state when no agent
+     owns it. */
+  --color-node-epic: #58a6ff;
+  --color-node-pr: #bc8cff;
+  --color-node-open: #3fb950;
+  --color-node-progress: #d29922;
+  --color-node-blocked: #f85149;
+  --color-node-closed: #8b949e;
+  --color-node-done: #238636;
+  --color-node-failed: #f85149;
+
+  /* Graph chrome */
+  --color-edge-blocks: #f85149;
+  --color-edge-parent: #2a3138;
+
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Courier New', monospace;
+}
+
+/* The viewer fills the window and the graph pans inside it. */
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
