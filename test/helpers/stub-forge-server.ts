@@ -37,31 +37,36 @@ export interface StubRequest {
 }
 
 /**
- * A real HTTP server that speaks the Gitea REST API.
+ * A real HTTP server that speaks a forge REST API.
  *
- * Use it to drive the real GiteaClient over the network in a test,
- * instead of replacing the client with an in-memory mock. The server
- * keeps state, so a comment you post is a comment you can read back.
+ * Use it to drive a real ForgeClient over the network in a test, instead
+ * of replacing the client with an in-memory mock. The server keeps
+ * state, so a comment you post is a comment you can read back.
  *
- * Routes:
- *   POST /api/<v>/repos/<owner>/<repo>/issues/<number>/comments
- *   GET  /api/<v>/repos/<owner>/<repo>/issues/<number>/comments
- *   GET  /api/<v>/repos/<owner>/<repo>/issues/comments/<id>
- *   POST /api/<v>/repos/<owner>/<repo>/issues/comments/<id>/reactions
- *   GET  /api/<v>/repos/<owner>/<repo>/pulls/<number>
+ * This class holds the state and the routes, which Gitea and GitHub
+ * share. A subclass supplies the three things they do not share: the
+ * path prefix, the authorization header, and the client config. Use
+ * StubGiteaServer or StubGitHubServer; you cannot build this class.
+ *
+ * Routes, after the prefix the subclass gives:
+ *   POST <prefix><owner>/<repo>/issues/<number>/comments
+ *   GET  <prefix><owner>/<repo>/issues/<number>/comments
+ *   GET  <prefix><owner>/<repo>/issues/comments/<id>
+ *   POST <prefix><owner>/<repo>/issues/comments/<id>/reactions
+ *   GET  <prefix><owner>/<repo>/pulls/<number>
  *
  * Every other route returns 404. When you set a token, a request
- * without the matching "Authorization: token <token>" header gets 401.
+ * without the matching authorization header gets 401.
  *
  * Usage:
- *   const forge = new StubForgeServer({ token: "t" });
+ *   const forge = new StubGiteaServer({ token: "t" });
  *   forge.start();
  *   const client = new GiteaClient(forge.forgeConfig("org", "repo"));
  *   await client.comment("org", "repo", 42, "hello");
  *   forge.commentsFor("org", "repo", 42); // [{ body: "hello", ... }]
  *   forge.stop();
  */
-export class StubForgeServer {
+export abstract class StubForgeServer {
 	/** Every request the server received, in order. */
 	requests: StubRequest[] = [];
 	/** Every reaction the server received, in order. */
@@ -70,7 +75,6 @@ export class StubForgeServer {
 	#server: ReturnType<typeof Bun.serve> | null = null;
 	#port: number;
 	#token: string;
-	#apiVersion: GiteaApiVersion;
 	#nextId: number;
 	/** Comments per thread, keyed by "<owner>/<repo>#<number>". */
 	#comments = new Map<string, StubComment[]>();
@@ -82,15 +86,12 @@ export class StubForgeServer {
 	constructor(opts?: {
 		/** Token the server demands. Empty string accepts any request. */
 		token?: string;
-		/** API version segment the routes use. Default "v1". */
-		apiVersion?: GiteaApiVersion;
 		/** Port to listen on. Default 0, which picks a free port. */
 		port?: number;
 		/** First comment id the server hands out. Default 1000. */
 		firstCommentId?: number;
 	}) {
 		this.#token = opts?.token ?? "";
-		this.#apiVersion = opts?.apiVersion ?? "v1";
 		this.#port = opts?.port ?? 0;
 		this.#nextId = opts?.firstCommentId ?? 1000;
 	}
@@ -120,18 +121,19 @@ export class StubForgeServer {
 		return `http://localhost:${this.#port}`;
 	}
 
-	/** A ForgeConfig pointing at this server, for building a real client. */
-	forgeConfig(owner: string, repo: string): ForgeConfig {
-		return {
-			name: "stub",
-			type: "gitea",
-			url: this.url,
-			token: this.#token,
-			owner,
-			repo,
-			apiVersion: this.#apiVersion,
-		};
+	/** Token the server demands, for a subclass that builds a config. */
+	protected get token(): string {
+		return this.#token;
 	}
+
+	/** A ForgeConfig pointing at this server, for building a real client. */
+	abstract forgeConfig(owner: string, repo: string): ForgeConfig;
+
+	/** Path every route starts with, up to and including "repos/". */
+	protected abstract routePrefix(): string;
+
+	/** Authorization header value the server accepts for this token. */
+	protected abstract authorization(token: string): string;
 
 	/** Add a comment without going through the API. Returns the comment. */
 	seedComment(
@@ -188,13 +190,12 @@ export class StubForgeServer {
 
 		if (this.#token) {
 			const auth = req.headers.get("authorization") ?? "";
-			if (auth !== `token ${this.#token}`) {
+			if (auth !== this.authorization(this.#token)) {
 				return Response.json({ message: "unauthorized" }, { status: 401 });
 			}
 		}
 
-		const v = this.#apiVersion;
-		const prefix = `/api/${v}/repos/`;
+		const prefix = this.routePrefix();
 		if (!path.startsWith(prefix)) return this.#notFound();
 		const rest = path.slice(prefix.length);
 
@@ -301,5 +302,73 @@ export class StubForgeServer {
 
 	#key(owner: string, repo: string, number: number): string {
 		return `${owner}/${repo}#${number}`;
+	}
+}
+
+/**
+ * Stub server that speaks the Gitea REST API.
+ *
+ * Gitea puts the API under /api/<version>/repos/ and takes a token in
+ * the form "token <token>".
+ */
+export class StubGiteaServer extends StubForgeServer {
+	#apiVersion: GiteaApiVersion;
+
+	constructor(opts?: {
+		token?: string;
+		/** API version segment the routes use. Default "v1". */
+		apiVersion?: GiteaApiVersion;
+		port?: number;
+		firstCommentId?: number;
+	}) {
+		super(opts);
+		this.#apiVersion = opts?.apiVersion ?? "v1";
+	}
+
+	forgeConfig(owner: string, repo: string): ForgeConfig {
+		return {
+			name: "stub-gitea",
+			type: "gitea",
+			url: this.url,
+			token: this.token,
+			owner,
+			repo,
+			apiVersion: this.#apiVersion,
+		};
+	}
+
+	protected routePrefix(): string {
+		return `/api/${this.#apiVersion}/repos/`;
+	}
+
+	protected authorization(token: string): string {
+		return `token ${token}`;
+	}
+}
+
+/**
+ * Stub server that speaks the GitHub REST API.
+ *
+ * GitHub puts the API at the root, under /repos/, and takes a token in
+ * the form "Bearer <token>".
+ */
+export class StubGitHubServer extends StubForgeServer {
+	forgeConfig(owner: string, repo: string): ForgeConfig {
+		return {
+			name: "stub-github",
+			type: "github",
+			url: this.url,
+			token: this.token,
+			owner,
+			repo,
+		};
+	}
+
+	protected routePrefix(): string {
+		return "/repos/";
+	}
+
+	protected authorization(token: string): string {
+		return `Bearer ${token}`;
 	}
 }
