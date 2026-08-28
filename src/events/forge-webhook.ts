@@ -1,4 +1,4 @@
-import { createHmac, randomUUID } from "node:crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import type {
 	Event,
 	CommentPayload,
@@ -9,6 +9,7 @@ import type {
 } from "../core/event.ts";
 import type { EventSource } from "../events/types.ts";
 import type { WebhookConfig, ForgeConfig } from "../config/types.ts";
+import type { Logger } from "../log/types.ts";
 
 /**
  * EventSource that receives forge webhooks over one HTTP server.
@@ -32,15 +33,21 @@ export class ForgeWebhookSource implements EventSource {
 	#port: number;
 	#secret: string;
 	#forges: ForgeConfig[];
+	#logger?: Logger;
 	#server: ReturnType<typeof Bun.serve> | null = null;
 
-	constructor(forges: ForgeConfig[], webhookConfig: WebhookConfig) {
+	constructor(
+		forges: ForgeConfig[],
+		webhookConfig: WebhookConfig,
+		logger?: Logger,
+	) {
 		if (forges.length === 0) {
 			throw new Error("forge webhook source: at least one forge is required");
 		}
 		this.#forges = forges;
 		this.#port = webhookConfig.port;
 		this.#secret = webhookConfig.secret;
+		this.#logger = logger;
 	}
 
 	/** Path the forge must post to. */
@@ -51,6 +58,15 @@ export class ForgeWebhookSource implements EventSource {
 	start(onEvent: (event: Event) => void): () => void {
 		const secret = this.#secret;
 		const forges = this.#forges;
+
+		if (!secret) {
+			// The example config ships an empty secret, so a deployment
+			// that copies it verifies nothing. Say so, loudly, once.
+			this.#logger?.warn(
+				"webhook secret is empty: every payload is accepted unverified",
+				{ port: this.#port },
+			);
+		}
 
 		this.#server = Bun.serve({
 			port: this.#port,
@@ -81,7 +97,7 @@ export class ForgeWebhookSource implements EventSource {
 						.update(body)
 						.digest("hex");
 					const provided = signature.replace(/^sha256=/, "");
-					if (provided !== expected) {
+					if (!digestsMatch(provided, expected)) {
 						return new Response("Invalid signature", { status: 401 });
 					}
 				}
@@ -105,6 +121,27 @@ export class ForgeWebhookSource implements EventSource {
 			this.#server = null;
 		};
 	}
+}
+
+/**
+ * Compare two hex digests in constant time.
+ *
+ * A plain string compare stops at the first byte that differs, so the
+ * time it takes tells the caller how much of the signature was right.
+ * A caller who can measure that learns the signature one byte at a
+ * time, without ever knowing the secret. timingSafeEqual always reads
+ * every byte.
+ *
+ * The length check is not constant time, and it does not need to be:
+ * the length of a SHA-256 hex digest is public.
+ *
+ * Exported for testing.
+ */
+export function digestsMatch(provided: string, expected: string): boolean {
+	const a = Buffer.from(provided, "utf-8");
+	const b = Buffer.from(expected, "utf-8");
+	if (a.length !== b.length) return false;
+	return timingSafeEqual(a, b);
 }
 
 /**

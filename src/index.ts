@@ -75,7 +75,7 @@ export function createOrchestrator(
 
 	// Event sources: one webhook server for every forge + beads watch
 	const sources: EventSource[] = [
-		new ForgeWebhookSource(config.forges, config.webhook),
+		new ForgeWebhookSource(config.forges, config.webhook, logger),
 		new BeadsWatchSource(config.beads),
 	];
 
