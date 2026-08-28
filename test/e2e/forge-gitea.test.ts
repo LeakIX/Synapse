@@ -5,7 +5,7 @@ import { MentionParser } from "../../src/parser/mention.ts";
 import { GiteaClient } from "../../src/forge/gitea.ts";
 import { ForgeWebhookSource } from "../../src/events/forge-webhook.ts";
 import { MockTracker } from "../helpers/mock-tracker.ts";
-import { StubForgeServer } from "../helpers/stub-forge-server.ts";
+import { StubGiteaServer } from "../helpers/stub-forge-server.ts";
 import type { StubComment } from "../helpers/stub-forge-server.ts";
 import { waitFor } from "../helpers/wait.ts";
 import type { AgentConfig } from "../../src/config/types.ts";
@@ -29,7 +29,7 @@ const repo = "repo";
 const token = "e2e-token";
 
 // E2E test: the orchestrator reports back over real HTTP.
-// Real: StubForgeServer (HTTP), GiteaClient, ForgeWebhookSource (HTTP),
+// Real: StubGiteaServer (HTTP), GiteaClient, ForgeWebhookSource (HTTP),
 //       MentionParser, Orchestrator, MemoryQueue
 // Mock: IssueTracker
 //
@@ -38,7 +38,7 @@ const token = "e2e-token";
 // another test left behind, so you can run one test on its own.
 
 describe("E2E: Gitea forge round trip", () => {
-	let forge: StubForgeServer;
+	let forge: StubGiteaServer;
 	let client: GiteaClient;
 	let queue: MemoryQueue;
 	let stopWebhook: () => void;
@@ -112,7 +112,7 @@ describe("E2E: Gitea forge round trip", () => {
 	}
 
 	beforeAll(() => {
-		forge = new StubForgeServer({ token });
+		forge = new StubGiteaServer({ token });
 		forge.start();
 
 		queue = new MemoryQueue();
