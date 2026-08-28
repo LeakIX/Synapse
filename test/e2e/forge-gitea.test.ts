@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeAll, afterAll } from "bun:test";
+import { describe, expect, test, beforeAll, beforeEach, afterAll } from "bun:test";
 import { Orchestrator } from "../../src/core/orchestrator.ts";
 import { MemoryQueue } from "../../src/queue/memory.ts";
 import { MentionParser } from "../../src/parser/mention.ts";
@@ -6,9 +6,11 @@ import { GiteaClient } from "../../src/forge/gitea.ts";
 import { ForgeWebhookSource } from "../../src/events/forge-webhook.ts";
 import { MockTracker } from "../helpers/mock-tracker.ts";
 import { StubForgeServer } from "../helpers/stub-forge-server.ts";
+import type { StubComment } from "../helpers/stub-forge-server.ts";
 import { waitFor } from "../helpers/wait.ts";
 import type { AgentConfig } from "../../src/config/types.ts";
 import type { Logger } from "../../src/log/types.ts";
+import type { TaskStatus } from "../../src/queue/types.ts";
 
 const silentLogger: Logger = {
 	debug: () => {},
@@ -30,12 +32,15 @@ const token = "e2e-token";
 // Real: StubForgeServer (HTTP), GiteaClient, ForgeWebhookSource (HTTP),
 //       MentionParser, Orchestrator, MemoryQueue
 // Mock: IssueTracker
+//
+// Each test owns its state. The stub server resets before each test, and
+// each test drives the round trip it asserts on. No test reads what
+// another test left behind, so you can run one test on its own.
 
 describe("E2E: Gitea forge round trip", () => {
 	let forge: StubForgeServer;
 	let client: GiteaClient;
 	let queue: MemoryQueue;
-	let tracker: MockTracker;
 	let stopWebhook: () => void;
 	let stopWatching: () => void;
 	const webhookPort = 19972;
@@ -73,16 +78,48 @@ describe("E2E: Gitea forge round trip", () => {
 		});
 	}
 
+	/**
+	 * Drive one task from the mention to the reply on the forge.
+	 * Returns the comment the orchestrator posted.
+	 */
+	async function roundTrip(opts: {
+		number: number;
+		commentId: number;
+		instruction: string;
+		summary: string;
+		outcome?: TaskStatus;
+	}): Promise<StubComment> {
+		await mention(opts.number, opts.commentId, opts.instruction);
+
+		const task = await queue.claim("code-agent");
+		expect(task).not.toBeNull();
+
+		const result = {
+			status: opts.outcome ?? ("success" as TaskStatus),
+			summary: opts.summary,
+		};
+		if (result.status === "success") {
+			await queue.complete(task!.id, result);
+		} else {
+			await queue.fail(task!.id, result);
+		}
+
+		await waitFor(
+			() => forge.commentsFor(owner, repo, opts.number).length === 1,
+			{ label: `reply on issue ${opts.number}` },
+		);
+		return forge.commentsFor(owner, repo, opts.number)[0]!;
+	}
+
 	beforeAll(() => {
 		forge = new StubForgeServer({ token });
 		forge.start();
 
-		tracker = new MockTracker();
 		queue = new MemoryQueue();
 		client = new GiteaClient(forge.forgeConfig(owner, repo));
 
 		const orch = new Orchestrator({
-			tracker,
+			tracker: new MockTracker(),
 			queue,
 			forges: [{ name: "stub", client }],
 			parser: new MentionParser(agents),
@@ -100,6 +137,10 @@ describe("E2E: Gitea forge round trip", () => {
 		stopWatching = orch.watchCompletions();
 	});
 
+	beforeEach(() => {
+		forge.reset();
+	});
+
 	afterAll(() => {
 		stopWatching();
 		stopWebhook();
@@ -107,60 +148,60 @@ describe("E2E: Gitea forge round trip", () => {
 	});
 
 	test("a completed task posts a comment over real HTTP", async () => {
-		await mention(42, 500, "@code-agent fix the failing test");
-
-		const task = await queue.claim("code-agent");
-		expect(task).not.toBeNull();
-
-		await queue.complete(task!.id, {
-			status: "success",
+		const posted = await roundTrip({
+			number: 42,
+			commentId: 500,
+			instruction: "@code-agent fix the failing test",
 			summary: "Fixed the failing test",
 		});
 
-		await waitFor(() => forge.commentsFor(owner, repo, 42).length === 1, {
-			label: "completion comment on the forge",
-		});
-		const posted = forge.commentsFor(owner, repo, 42)[0]!;
 		expect(posted.body).toContain("code-agent");
 		expect(posted.body).toContain("Fixed the failing test");
 	});
 
 	test("the client sends the token on the real request", async () => {
+		await roundTrip({
+			number: 45,
+			commentId: 503,
+			instruction: "@code-agent update the docs",
+			summary: "Updated the docs",
+		});
+
 		const post = forge.requests.find(
 			(r) =>
 				r.method === "POST" &&
-				r.path === `/api/v1/repos/${owner}/${repo}/issues/42/comments`,
+				r.path === `/api/v1/repos/${owner}/${repo}/issues/45/comments`,
 		);
 		expect(post).toBeDefined();
 		expect(post!.authorization).toBe(`token ${token}`);
 	});
 
 	test("a failed task posts a failure comment over real HTTP", async () => {
-		await mention(43, 501, "@code-agent break something");
-
-		const task = await queue.claim("code-agent");
-		expect(task).not.toBeNull();
-
-		await queue.fail(task!.id, {
-			status: "failure",
+		const posted = await roundTrip({
+			number: 43,
+			commentId: 501,
+			instruction: "@code-agent break something",
 			summary: "The build does not compile",
+			outcome: "failure",
 		});
 
-		await waitFor(() => forge.commentsFor(owner, repo, 43).length === 1, {
-			label: "failure comment on the forge",
-		});
-		const posted = forge.commentsFor(owner, repo, 43)[0]!;
 		expect(posted.body).toContain("code-agent");
 		expect(posted.body).toContain("The build does not compile");
 	});
 
 	test("the posted comment reads back through the API", async () => {
-		const posted = forge.commentsFor(owner, repo, 42)[0]!;
-		const fetched = await client.getComment(owner, repo, 42, posted.id);
+		const posted = await roundTrip({
+			number: 46,
+			commentId: 504,
+			instruction: "@code-agent add the test",
+			summary: "Added the test",
+		});
+
+		const fetched = await client.getComment(owner, repo, 46, posted.id);
 		expect(fetched.id).toBe(posted.id);
 		expect(fetched.body).toBe(posted.body);
 
-		const all = await client.listComments(owner, repo, 42);
+		const all = await client.listComments(owner, repo, 46);
 		expect(all).toHaveLength(1);
 		expect(all[0]!.id).toBe(posted.id);
 	});
