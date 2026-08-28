@@ -1,5 +1,5 @@
-import { readFileSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { join, dirname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -124,16 +124,51 @@ async function readQueue(dir: string): Promise<QueueTaskView[]> {
 	return result;
 }
 
+/** Where `bun run viewer:build` writes the SvelteKit output. */
+const buildDir = join(__dirname, "web", "build");
+
+/**
+ * Read one file out of the build directory.
+ *
+ * The path resolves inside the build directory. A request that climbs out
+ * of it with `..` gets null, and the caller answers 404.
+ */
+async function readAsset(pathname: string): Promise<Response | null> {
+	const relative = pathname === "/" ? "/index.html" : pathname;
+	const target = resolve(buildDir, `.${relative}`);
+	if (target !== buildDir && !target.startsWith(buildDir + sep)) {
+		return null;
+	}
+	const file = Bun.file(target);
+	if (!(await file.exists())) {
+		return null;
+	}
+	const headers: Record<string, string> = {};
+	if (pathname.startsWith("/_app/immutable/")) {
+		headers["Cache-Control"] = "public, max-age=31536000, immutable";
+	}
+	return new Response(file, { headers });
+}
+
 export function startViewer(port: number, repoDir: string) {
-	const html = readFileSync(join(__dirname, "index.html"), "utf-8");
+	// The built frontend wins. The single file page stays as the fallback,
+	// so the viewer still runs before anyone builds the frontend.
+	const hasBuild = existsSync(join(buildDir, "index.html"));
+	const legacyPath = join(__dirname, "index.html");
+	const legacyHtml = hasBuild ? "" : readFileSync(legacyPath, "utf-8");
 
 	const server = Bun.serve({
 		port,
 		async fetch(req: Request) {
 			const url = new URL(req.url);
 
-			if (url.pathname === "/") {
-				return new Response(html, {
+			if (hasBuild && !url.pathname.startsWith("/api/")) {
+				const asset = await readAsset(url.pathname);
+				if (asset) return asset;
+			}
+
+			if (!hasBuild && url.pathname === "/") {
+				return new Response(legacyHtml, {
 					headers: { "Content-Type": "text/html; charset=utf-8" },
 				});
 			}
@@ -157,7 +192,8 @@ export function startViewer(port: number, repoDir: string) {
 	});
 
 	console.log(
-		`viewer on http://localhost:${port} (dir: ${repoDir}, bd: ${bdBinary})`,
+		`viewer on http://localhost:${port} (dir: ${repoDir}, bd: ${bdBinary}, ` +
+			`frontend: ${hasBuild ? "build" : "fallback"})`,
 	);
 
 	return {
