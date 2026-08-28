@@ -107,8 +107,11 @@ queue:
   dir: ./queue
 
 agents:
+  # harness: opencode (default) or command
   - name: code-agent
     emoji: "🔧"
+    harness: opencode
+    model: anthropic/claude-opus-5
 
 webhook:
   # Point each forge at /webhook/<forge-name>.
@@ -194,6 +197,10 @@ src/
   parser/
     types.ts        # EventParser interface
     mention.ts      # @agent-name parser
+  harness/
+    types.ts        # AgentHarness interface
+    opencode.ts     # OpenCode CLI harness (default)
+    command.ts      # shell command harness
   issues/
     types.ts        # IssueTracker interface
     beads.ts        # bd CLI client

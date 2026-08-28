@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { parse } from "yaml";
+import type { HarnessType } from "../harness/types.ts";
 import type {
 	OrchestratorConfig,
 	ForgeConfig,
@@ -87,7 +88,10 @@ export function validateConfig(
 		agents: (agents as Record<string, unknown>[]).map((a, i) => ({
 			name: str(a, "name", `agents[${i}].name`),
 			emoji: str(a, "emoji", `agents[${i}].emoji`),
+			harness: a.harness as HarnessType | undefined,
 			command: a.command as string | undefined,
+			model: a.model as string | undefined,
+			dir: a.dir as string | undefined,
 		})),
 		webhook: {
 			port: num(webhook, "port", "webhook.port"),

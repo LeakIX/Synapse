@@ -3,6 +3,8 @@ import type { ForgeClient } from "../forge/types.ts";
 import type { Logger } from "../log/types.ts";
 import type { AgentHarness } from "../harness/types.ts";
 import { CommandHarness } from "../harness/command.ts";
+import { OpenCodeHarness } from "../harness/opencode.ts";
+import type { AgentConfig } from "../config/types.ts";
 
 /**
  * An AI agent that claims tasks from the queue, executes them,
@@ -146,12 +148,39 @@ export class Agent {
 }
 
 /**
+ * Build the harness one agent uses.
+ *
+ * OpenCode is the default, so an agent needs no harness field. An agent
+ * with harness "command" runs a shell command and must set one.
+ */
+export function createHarness(
+	agentConfig: AgentConfig,
+	model: string,
+): AgentHarness {
+	const type = agentConfig.harness ?? "opencode";
+	switch (type) {
+		case "command":
+			if (!agentConfig.command) {
+				throw new Error(
+					`agent ${agentConfig.name} uses the command harness but sets no command`,
+				);
+			}
+			return new CommandHarness({ command: agentConfig.command });
+		case "opencode":
+			return new OpenCodeHarness({
+				model: agentConfig.model ?? model,
+				dir: agentConfig.dir,
+			});
+	}
+}
+
+/**
  * Load an agent from the orchestrator config and wire it up.
  * Returns the agent and a stop function.
  */
 export function createAgent(
 	config: {
-		agents: Array<{ name: string; emoji: string; command?: string }>;
+		agents: AgentConfig[];
 		queue: TaskQueue;
 		forges: Array<{ name: string; client: ForgeClient }>;
 		logger: Logger;
@@ -163,12 +192,7 @@ export function createAgent(
 	if (!agentConfig) {
 		throw new Error(`agent not found in config: ${agentName}`);
 	}
-	if (!agentConfig.command) {
-		throw new Error(
-			`agent ${agentName} has no command configured; cannot run`,
-		);
-	}
-	const harness = new CommandHarness({ command: agentConfig.command });
+	const harness = createHarness(agentConfig, model);
 
 	const forge = config.forges[0]?.client;
 	if (!forge) {

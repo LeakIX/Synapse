@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { CommandHarness, lastLine } from "../../src/harness/command.ts";
+import {
+	OpenCodeHarness,
+	summarize,
+} from "../../src/harness/opencode.ts";
 
 describe("CommandHarness", () => {
 	test("a command that succeeds reports the last line", async () => {
@@ -51,5 +55,73 @@ describe("lastLine", () => {
 
 	test("caps the line at 200 characters", () => {
 		expect(lastLine("x".repeat(500))).toHaveLength(200);
+	});
+});
+
+describe("OpenCodeHarness", () => {
+	test("builds the non-interactive call", () => {
+		const harness = new OpenCodeHarness({
+			model: "anthropic/claude-opus-5",
+			dir: "/work",
+			agent: "build",
+		});
+		expect(harness.argsFor("fix the test")).toEqual([
+			"run",
+			"fix the test",
+			"--format",
+			"json",
+			"--model",
+			"anthropic/claude-opus-5",
+			"--dir",
+			"/work",
+			"--agent",
+			"build",
+		]);
+	});
+
+	test("leaves out what the config does not set", () => {
+		expect(new OpenCodeHarness().argsFor("x")).toEqual([
+			"run",
+			"x",
+			"--format",
+			"json",
+		]);
+	});
+
+	test("names itself", () => {
+		expect(new OpenCodeHarness().name).toBe("opencode");
+	});
+
+	test("a missing binary is a failure, not a throw", async () => {
+		const harness = new OpenCodeHarness({
+			binary: "/nonexistent/opencode",
+		});
+		const result = await harness.run({ instruction: "x", taskId: "t" });
+		expect(result.status).toBe("failure");
+		expect(result.summary).toStartWith("failed:");
+	});
+});
+
+describe("summarize", () => {
+	test("takes the last text of the JSON events", () => {
+		const out = [
+			'{"type":"start"}',
+			'{"type":"message","parts":[{"type":"text","text":"thinking"}]}',
+			'{"type":"message","parts":[{"type":"text","text":"Fixed the test"}]}',
+		].join("\n");
+		expect(summarize(out)).toBe("Fixed the test");
+	});
+
+	test("falls back to the last raw line when nothing parses", () => {
+		expect(summarize("plain output\nlast line")).toBe("last line");
+	});
+
+	test("is empty when the run printed nothing", () => {
+		expect(summarize("")).toBe("");
+	});
+
+	test("takes the last line of a multi line text", () => {
+		const out = '{"text":"first line\\nsecond line"}';
+		expect(summarize(out)).toBe("second line");
 	});
 });
