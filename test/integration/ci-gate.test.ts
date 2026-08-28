@@ -136,7 +136,7 @@ describe("Orchestrator + CiGate (integration)", () => {
 		expect(queue.pendingCount).toBe(1);
 	});
 
-	test("CI transitions from failing to passing: task can be dispatched", async () => {
+	test("CI transitions from failing to passing: the held task is released", async () => {
 		const ci = new MockCi("failing");
 		const gate = new CiGate(ci, silentLogger, "org", "repo");
 		const tracker = new MockTracker();
@@ -154,11 +154,38 @@ describe("Orchestrator + CiGate (integration)", () => {
 		const event = makeCommentEvent("@code-agent review PR #42");
 		await orch.handleEvent(event);
 		expect(queue.pendingCount).toBe(0);
+		expect(queue.heldCount).toBe(1);
 
+		// A retry while CI still fails changes nothing.
+		expect(await orch.retryHeldTasks()).toHaveLength(0);
+		expect(queue.heldCount).toBe(1);
+
+		// The same task runs once CI passes. No second comment is needed.
 		ci.status = "passing";
-		const event2 = makeCommentEvent("@code-agent review PR #42 again");
-		const tasks = await orch.handleEvent(event2);
-		expect(tasks).toHaveLength(1);
+		const released = await orch.retryHeldTasks();
+		expect(released).toHaveLength(1);
+		expect(queue.heldCount).toBe(0);
 		expect(queue.pendingCount).toBe(1);
+
+		const issue = tracker.get(released[0]!.issueId);
+		expect(issue.status).toBe("open");
+	});
+
+	test("a task without a CI gate is never held", async () => {
+		const tracker = new MockTracker();
+		const queue = new MemoryQueue();
+		const orch = new Orchestrator({
+			tracker,
+			queue,
+			forges: [{ name: "test", client: new MockForge() }],
+			parser: new MentionParser(agents),
+			logger: silentLogger,
+			agents,
+		});
+
+		await orch.handleEvent(makeCommentEvent("@code-agent review PR #42"));
+		expect(queue.pendingCount).toBe(1);
+		expect(queue.heldCount).toBe(0);
+		expect(await orch.retryHeldTasks()).toHaveLength(0);
 	});
 });

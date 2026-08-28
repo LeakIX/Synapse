@@ -121,16 +121,21 @@ export async function main(): Promise<void> {
 	);
 
 	const stopWatching = orchestrator.watchCompletions();
+	const stopHousekeeping = orchestrator.startHousekeeping({
+		intervalMs: config.housekeeping.intervalMs,
+	});
 
 	logger.info("orchestrator started", {
 		forges: config.forges.map((f) => `${f.name} (${f.type})`),
 		cis: config.cis.map((c) => `${c.name} (${c.type})`),
 		agents: config.agents.map((a) => a.name),
 		webhookPort: config.webhook.port,
+		housekeepingIntervalMs: config.housekeeping.intervalMs,
 	});
 
 	const shutdown = () => {
 		logger.info("shutting down");
+		stopHousekeeping();
 		stopWatching();
 		for (const stop of stops) stop();
 		process.exit(0);

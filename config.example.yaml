@@ -60,6 +60,12 @@ webhook:
   port: 8080
   secret: ${WEBHOOK_SECRET:-}
 
+housekeeping:
+  # The orchestrator asks the CI gate again about every held task on
+  # this interval, and releases the tasks whose pull request is green.
+  # Optional. The default is 60000.
+  intervalMs: 60000
+
 parser:
   type: mention
 

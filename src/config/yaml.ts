@@ -97,6 +97,13 @@ export function validateConfig(
 			port: num(webhook, "port", "webhook.port"),
 			secret: str(webhook, "secret", "webhook.secret"),
 		},
+		housekeeping: {
+			intervalMs: optionalNum(
+				(obj.housekeeping as Record<string, unknown>) ?? {},
+				"intervalMs",
+				60000,
+			),
+		},
 		parser: {
 			type: parser.type as ParserType,
 		},
@@ -114,6 +121,16 @@ function optionalStr(
 ): string {
 	const val = obj[key];
 	if (typeof val === "string" && val.length > 0) return val;
+	return fallback;
+}
+
+function optionalNum(
+	obj: Record<string, unknown>,
+	key: string,
+	fallback: number,
+): number {
+	const val = obj[key];
+	if (typeof val === "number" && Number.isFinite(val) && val > 0) return val;
 	return fallback;
 }
 

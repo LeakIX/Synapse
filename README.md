@@ -118,6 +118,10 @@ webhook:
   port: 8080
   secret: ${WEBHOOK_SECRET:-}
 
+housekeeping:
+  # How often the orchestrator retries the tasks the CI gate holds.
+  intervalMs: 60000
+
 parser:
   type: mention
 
