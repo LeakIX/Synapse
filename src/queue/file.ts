@@ -17,6 +17,7 @@ import type { QueueTask, TaskQueue, TaskResult } from "./types.ts";
  *   <dir>/pending/  - tasks waiting for an agent
  *   <dir>/active/   - tasks claimed by an agent
  *   <dir>/done/     - tasks completed successfully
+ *   <dir>/held/     - tasks a gate holds, waiting to be released
  *   <dir>/failed/   - tasks that failed
  *   <dir>/archive/  - processed tasks, moved here after handling
  *
@@ -31,6 +32,7 @@ export class FileQueue implements TaskQueue {
 		mkdirSync(join(dir, "active"), { recursive: true });
 		mkdirSync(join(dir, "done"), { recursive: true });
 		mkdirSync(join(dir, "failed"), { recursive: true });
+		mkdirSync(join(dir, "held"), { recursive: true });
 		mkdirSync(join(dir, "archive"), { recursive: true });
 	}
 
@@ -73,8 +75,37 @@ export class FileQueue implements TaskQueue {
 		return () => clearInterval(interval);
 	}
 
+	async hold(task: QueueTask): Promise<void> {
+		const path = join(this.#dir, "held", `${task.id}.json`);
+		writeFileSync(path, JSON.stringify(task, null, 2));
+	}
+
+	async listHeld(): Promise<QueueTask[]> {
+		const held: QueueTask[] = [];
+		for (const file of this.#listFiles(join(this.#dir, "held"))) {
+			try {
+				held.push(JSON.parse(readFileSync(file, "utf-8")) as QueueTask);
+			} catch {
+				// file being written, skip it
+			}
+		}
+		return held;
+	}
+
+	async release(taskId: string): Promise<QueueTask | null> {
+		const heldPath = join(this.#dir, "held", `${taskId}.json`);
+		if (!existsSync(heldPath)) return null;
+		const task = JSON.parse(readFileSync(heldPath, "utf-8")) as QueueTask;
+		writeFileSync(
+			join(this.#dir, "pending", `${taskId}.json`),
+			JSON.stringify(task, null, 2),
+		);
+		unlinkSync(heldPath);
+		return task;
+	}
+
 	async archive(taskId: string): Promise<void> {
-		for (const sub of ["done", "failed", "active", "pending"]) {
+		for (const sub of ["done", "failed", "active", "pending", "held"]) {
 			const path = join(this.#dir, sub, `${taskId}.json`);
 			if (existsSync(path)) {
 				this.#moveToArchive(path);

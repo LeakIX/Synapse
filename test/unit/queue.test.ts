@@ -1,10 +1,17 @@
-import { describe, expect, test, beforeEach, afterEach } from "bun:test";
+import {
+	describe,
+	expect,
+	test,
+	beforeEach,
+	afterEach,
+	afterAll,
+} from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { FileQueue } from "../../src/queue/file.ts";
 import { MemoryQueue } from "../../src/queue/memory.ts";
-import type { QueueTask } from "../../src/queue/types.ts";
+import type { QueueTask, TaskQueue } from "../../src/queue/types.ts";
 
 function makeTask(overrides: Partial<QueueTask> = {}): QueueTask {
 	return {
@@ -237,3 +244,54 @@ describe("MemoryQueue", () => {
 		expect(true).toBe(true);
 	});
 });
+// The CI gate parks a task it cannot run yet. Both queues must hide a
+// held task from a claim, and hand it back on release.
+const heldDirs: string[] = [];
+
+const queueFactories: Array<[string, () => TaskQueue]> = [
+	[
+		"FileQueue",
+		() => {
+			const dir = mkdtempSync(join(tmpdir(), "held-queue-"));
+			heldDirs.push(dir);
+			return new FileQueue(dir);
+		},
+	],
+	["MemoryQueue", () => new MemoryQueue()],
+];
+
+afterAll(() => {
+	for (const dir of heldDirs) rmSync(dir, { recursive: true, force: true });
+});
+
+for (const [name, make] of queueFactories) {
+	describe(`${name} held tasks`, () => {
+		test("a held task is invisible to a claim", async () => {
+			const queue = make();
+			const task = makeTask();
+			await queue.hold(task);
+
+			expect(await queue.claim(task.agent)).toBeNull();
+			expect((await queue.listHeld()).map((t) => t.id)).toEqual([task.id]);
+		});
+
+		test("release moves the task into pending", async () => {
+			const queue = make();
+			const task = makeTask();
+			await queue.hold(task);
+
+			const released = await queue.release(task.id);
+			expect(released?.id).toBe(task.id);
+			expect(await queue.listHeld()).toHaveLength(0);
+
+			const claimed = await queue.claim(task.agent);
+			expect(claimed?.id).toBe(task.id);
+			expect(claimed?.claimedAt).toBeDefined();
+		});
+
+		test("release returns null for a task that is not held", async () => {
+			const queue = make();
+			expect(await queue.release("no-such-task")).toBeNull();
+		});
+	});
+}
